@@ -4,7 +4,7 @@ import {
   DEFAULT_CONFIG,
   DEFAULT_EXCLUDE_AGENTS,
   readConfig,
-} from "../../src/opencode/config.ts";
+} from "../../src/core/config.ts";
 
 describe("readConfig", () => {
   test("returns defaults for empty options", () => {

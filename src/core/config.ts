@@ -1,14 +1,17 @@
-// Plugin options as they appear in opencode.jsonc, validated once at setup.
+// Adapter options, read once at startup. The same shape serves every harness;
+// an adapter ignores the fields it cannot honour.
 
 import {
   DEFAULT_MIN_CONFIDENCE,
   DEFAULT_STAKES_THRESHOLD,
   DEFAULT_TIMEOUT_MS,
+  type QuestionSpec,
+} from "./decision.ts";
+import {
   isEffortLevel,
   type EffortLevel,
   type OptionTemplates,
-  type QuestionSpec,
-} from "../core/index.ts";
+} from "./effort.ts";
 
 export const DEFAULT_EXCLUDE_AGENTS: readonly string[] = [
   "title",
@@ -19,7 +22,7 @@ export const DEFAULT_EXCLUDE_AGENTS: readonly string[] = [
 /** Default jevos port; 0 asks the supervisor to scan for a free one. */
 export const DEFAULT_JEV_PORT = 8017;
 
-export interface PluginConfig {
+export interface EffortConfig {
   readonly endpoint?: string;
   readonly apiKey?: string;
   readonly model?: string;
@@ -47,7 +50,7 @@ export interface PluginConfig {
   readonly questions?: QuestionSpec;
 }
 
-export const DEFAULT_CONFIG: PluginConfig = {
+export const DEFAULT_CONFIG: EffortConfig = {
   defaultEffort: "medium",
   maxEffort: "xhigh",
   minConfidence: DEFAULT_MIN_CONFIDENCE,
@@ -93,7 +96,7 @@ function templates(value: unknown): OptionTemplates | undefined {
 }
 
 /** Reads the plugin options, falling back to defaults for anything invalid. */
-export function readConfig(options: unknown): PluginConfig {
+export function readConfig(options: unknown): EffortConfig {
   const raw = (options ?? {}) as Record<string, unknown>;
   const endpoint = typeof raw["endpoint"] === "string" && raw["endpoint"].trim()
     ? raw["endpoint"].trim()
@@ -174,7 +177,10 @@ function readQuestions(value: unknown): QuestionSpec | undefined {
 }
 
 /** True when the agent should not get a decision at all. */
-export function agentIncluded(config: PluginConfig, agent: string): boolean {
+export function agentIncluded(
+  config: EffortConfig,
+  agent: string,
+): boolean {
   const name = agent.toLowerCase();
   if (config.excludeAgents.some((entry) => entry.toLowerCase() === name)) {
     return false;

@@ -10,6 +10,7 @@ import {
   applyEffort,
   buildCatalog,
   catalogKey,
+  agentIncluded,
   cacheRoot,
   createLogger,
   defaultReuseDirs,
@@ -17,13 +18,13 @@ import {
   jevLogPath,
   JevInstaller,
   JevServer,
+  readConfig,
   releaseTarget,
   type CatalogEntry,
   type CatalogModel,
   type EffortLevel,
   type StashedDecision,
 } from "../core/index.ts";
-import { agentIncluded, readConfig } from "./config.ts";
 import { DynamicEffort } from "./rpc.ts";
 
 export const PLUGIN_ID = "dynamic-effort";

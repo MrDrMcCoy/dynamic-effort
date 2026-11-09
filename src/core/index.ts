@@ -49,6 +49,15 @@ export {
 } from "./decision.ts";
 
 export {
+  agentIncluded,
+  DEFAULT_CONFIG,
+  DEFAULT_EXCLUDE_AGENTS,
+  DEFAULT_JEV_PORT,
+  readConfig,
+  type EffortConfig,
+} from "./config.ts";
+
+export {
   DecisionRouter,
   type ContextEvent,
   type PromptEvent,

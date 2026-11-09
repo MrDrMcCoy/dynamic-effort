@@ -329,7 +329,10 @@ export async function flatten(
   logger: Logger,
 ): Promise<void> {
   const nested = join(directory, name);
-  const isDir = await stat(nested).then((info) => info.isDirectory(), () => false);
+  const isDir = await stat(nested).then(
+    (info) => info.isDirectory(),
+    () => false,
+  );
   if (!isDir) return;
 
   // Move the folder aside first: its contents can collide with its name.
@@ -337,7 +340,8 @@ export async function flatten(
   await rename(nested, stash);
   for (const entry of await readdir(stash)) {
     await rename(join(stash, entry), join(directory, entry)).catch(
-      (error: unknown) => logger.debug("could not move an extracted file", error),
+      (error: unknown) =>
+        logger.debug("could not move an extracted file", error),
     );
   }
   await rm(stash, { recursive: true, force: true }).catch(() => {});
@@ -352,17 +356,23 @@ async function extract(
 ): Promise<void> {
   if (kind === "zip") {
     try {
-      const result = await run("unzip", ["-q", "-o", archive, "-d", destination], timeoutMs);
+      const result = await run(
+        "unzip",
+        ["-q", "-o", archive, "-d", destination],
+        timeoutMs,
+      );
       if (result.code === 0) return;
     } catch {
       // Fall through to tar, which handles zip as bsdtar on macOS and Windows.
     }
   }
-  const result = await run("tar", ["-xf", archive, "-C", destination], timeoutMs).catch(
-    (error: unknown) => {
-      throw new Error(`could not extract ${archive}: ${String(error)}`);
-    },
-  );
+  const result = await run(
+    "tar",
+    ["-xf", archive, "-C", destination],
+    timeoutMs,
+  ).catch((error: unknown) => {
+    throw new Error(`could not extract ${archive}: ${String(error)}`);
+  });
   if (result.code !== 0) {
     logger.warn("archive extraction failed", result.stderr.slice(0, 200));
     throw new Error(`could not extract ${archive}`);

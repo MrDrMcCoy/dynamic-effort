@@ -113,7 +113,8 @@ function resolveApiKey(explicit?: string): string {
   );
 }
 
-/** Accepts a base URL or a full endpoint; adds the decision path when absent. */
+// Accepts a base URL or a full endpoint; adds the decision path when
+// absent.
 export function resolveEndpoint(base: string): string {
   const trimmed = base.trim().replace(/\/+$/, "");
   if (!trimmed) return DEFAULT_ENDPOINT;

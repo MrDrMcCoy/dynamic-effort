@@ -170,9 +170,10 @@ export class DecisionRouter {
         });
       }
 
+      const model = `${event.model.providerID}/${event.model.modelID}`;
       const state = buildState(
         text,
-        { agent: event.agent, model: `${event.model.providerID}/${event.model.modelID}` },
+        { agent: event.agent, model },
         this.maxStateChars,
       );
       const decision: Decision = await decide(

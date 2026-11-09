@@ -23,7 +23,7 @@ import {
   type EffortLevel,
   type StashedDecision,
 } from "../core/index.ts";
-import { agentIncluded, readConfig, type PluginConfig } from "./config.ts";
+import { agentIncluded, readConfig } from "./config.ts";
 import { DynamicEffort } from "./rpc.ts";
 
 export const PLUGIN_ID = "dynamic-effort";

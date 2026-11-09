@@ -177,9 +177,14 @@ export class JevServer {
     // Another instance may already serve the port; attach rather than spawn.
     if (
       requested !== null &&
-      (await probeHealth(requested, this.options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS))
+      (await probeHealth(
+        requested,
+        this.options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS,
+      ))
     ) {
-      this.logger.debug("attaching to a running jevos server", { port: requested });
+      this.logger.debug("attaching to a running jevos server", {
+        port: requested,
+      });
       return this.attach(requested);
     }
 
@@ -221,7 +226,9 @@ export class JevServer {
       "0",
     ];
     const threads = this.options.threads;
-    if (threads !== null && threads > 0) args.push("--threads", String(threads));
+    if (threads !== null && threads > 0) {
+      args.push("--threads", String(threads));
+    }
 
     let child: ChildProcess;
     try {
@@ -247,7 +254,10 @@ export class JevServer {
     );
     if (!ready) {
       this.failedAt = Date.now();
-      this.logger.warn("the jevos server did not answer", `see ${this.logPath}`);
+      this.logger.warn(
+        "the jevos server did not answer",
+        `see ${this.logPath}`,
+      );
       await this.stop();
       return null;
     }

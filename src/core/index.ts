@@ -56,7 +56,12 @@ export {
   type StashedDecision,
 } from "./router.ts";
 
-export { JevInstaller, hashFile, type InstallOptions, type JevInstall } from "./jev/manager.ts";
+export {
+  JevInstaller,
+  hashFile,
+  type InstallOptions,
+  type JevInstall,
+} from "./jev/manager.ts";
 export {
   JevServer,
   FIRST_PORT,
@@ -88,4 +93,9 @@ export {
   jevInstallDir,
   jevLogPath,
 } from "./paths.ts";
-export { createLogger, NULL_LOGGER, type Logger, type LogLevel } from "./log.ts";
+export {
+  createLogger,
+  NULL_LOGGER,
+  type Logger,
+  type LogLevel,
+} from "./log.ts";

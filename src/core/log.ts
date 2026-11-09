@@ -36,7 +36,8 @@ function format(detail: unknown): string {
 
 export function createLogger(options: LoggerOptions): Logger {
   const write = (level: LogLevel, message: string, detail?: unknown) => {
-    const line = `${new Date().toISOString()} ${level} ${PREFIX} ${message}${format(detail)}`;
+    const time = new Date().toISOString();
+    const line = `${time} ${level} ${PREFIX} ${message}${format(detail)}`;
     if (options.sink) {
       options.sink(line);
       return;

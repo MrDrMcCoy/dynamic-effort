@@ -136,7 +136,8 @@ export function readConfig(options: unknown): PluginConfig {
     jevThreads: threads === undefined ? null : Math.floor(threads),
     jevIdleMs: positiveNumber(raw["jevIdleMs"]) ?? DEFAULT_CONFIG.jevIdleMs,
     jevPath,
-    jevReuseDirs: stringList(raw["jevReuseDirs"]) ?? DEFAULT_CONFIG.jevReuseDirs,
+    jevReuseDirs:
+      stringList(raw["jevReuseDirs"]) ?? DEFAULT_CONFIG.jevReuseDirs,
     questions: readQuestions(raw["questions"]),
   };
 }

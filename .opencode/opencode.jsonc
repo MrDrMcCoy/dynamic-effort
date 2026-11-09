@@ -12,7 +12,7 @@
   // directory. Relative plugin paths resolve from the directory containing
   // this config file.
   "plugins": [
-    "-smart-reasoning"
-    // ,{ "package": "./plugin", "options": { "endpoint": "http://localhost:9930/v1/systemone", "apiKey": "local" } }
+    "-smart-reasoning",
+    { "package": ".", "options": { "debug": true } }
   ]
 }

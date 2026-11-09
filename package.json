@@ -1,0 +1,56 @@
+{
+  "name": "@mrdrmccoy/dynamic-effort",
+  "version": "0.1.0",
+  "description": "Adjust model reasoning effort to task difficulty with a local decision model",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrDrMcCoy/dynamic-effort.git"
+  },
+  "type": "module",
+  "main": "./src/opencode/index.ts",
+  "bin": {
+    "dynamic-effort": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/opencode/index.ts",
+    "./core": "./src/core/index.ts",
+    "./rpc": "./src/opencode/rpc.ts",
+    "./tui": "./src/opencode/tui.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "opencode",
+    "plugin",
+    "reasoning-effort",
+    "jev",
+    "systemone"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test test/unit",
+    "test:all": "bun test test"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "^2.2.5",
+    "@opentui/core": "^0.5.12",
+    "@opentui/solid": "^0.5.12",
+    "@types/bun": "^1.4.3",
+    "@types/node": "^22.10.0",
+    "solid-js": "^1.9.15",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.2.5",
+    "@opentui/core": ">=0.5.8",
+    "@opentui/solid": ">=0.5.8",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentui/core": { "optional": true },
+    "@opentui/solid": { "optional": true },
+    "solid-js": { "optional": true }
+  }
+}

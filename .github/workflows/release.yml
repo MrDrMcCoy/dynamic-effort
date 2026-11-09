@@ -1,16 +1,11 @@
 name: Release
 
 # Publishing happens only for a tag pushed on purpose. Merges to main run CI
-# but never publish.
+# but never publish. A manual run packs the tarball without publishing.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
-    inputs:
-      dry-run:
-        description: Build and pack without publishing
-        type: boolean
-        default: true
 
 permissions:
   contents: read
@@ -56,7 +51,7 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish
-        if: startsWith(github.ref, 'refs/tags/') && inputs.dry-run != true
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --provenance

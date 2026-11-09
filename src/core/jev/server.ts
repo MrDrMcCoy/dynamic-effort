@@ -33,6 +33,8 @@ export interface SupervisorOptions {
   readonly logPath?: string;
   readonly root?: string;
   readonly idleMs: number;
+  /** How often the idle timer checks; 30 s unless a test says otherwise. */
+  readonly idleCheckMs?: number;
   readonly startupTimeoutMs?: number;
   readonly probeTimeoutMs?: number;
   readonly stopGraceMs?: number;
@@ -100,6 +102,7 @@ async function waitForHealth(
 export class JevServer {
   private base: string | null = null;
   private child: ChildProcess | null = null;
+  private attached = false;
   private pending: Promise<string | null> | null = null;
   private failedAt = 0;
   private lastUse = 0;
@@ -121,6 +124,11 @@ export class JevServer {
 
   get pid(): number | null {
     return this.child?.pid ?? null;
+  }
+
+  /** True when the server is one this process started. */
+  get owns(): boolean {
+    return this.child !== null && !this.attached;
   }
 
   /** The base URL, starting the server when needed; null when unavailable. */
@@ -155,6 +163,7 @@ export class JevServer {
     const child = this.child;
     this.child = null;
     this.base = null;
+    this.attached = false;
     if (child === null) return;
 
     await new Promise<void>((resolve) => {
@@ -268,9 +277,15 @@ export class JevServer {
 
   private attach(port: number): string {
     this.base = `http://127.0.0.1:${port}`;
+    // Only a server this process started stops with it; an attached one
+    // belongs to whoever started it and must outlive us.
+    this.attached = this.child === null;
     this.lastUse = Date.now();
     if (this.timer === null) {
-      this.timer = setInterval(() => this.expire(), IDLE_CHECK_MS);
+      this.timer = setInterval(
+        () => this.expire(),
+        this.options.idleCheckMs ?? IDLE_CHECK_MS,
+      );
       this.timer.unref?.();
     }
     return this.base;
@@ -279,6 +294,14 @@ export class JevServer {
   private expire(): void {
     if (this.base === null) return;
     if (Date.now() - this.lastUse < this.options.idleMs) return;
+    if (this.attached) {
+      // Someone else's server: drop the reference, leave the process alone.
+      this.logger.debug("forgetting the idle jevos server");
+      this.base = null;
+      if (this.timer !== null) clearInterval(this.timer);
+      this.timer = null;
+      return;
+    }
     this.logger.info("stopping the idle jevos server");
     void this.stop();
   }

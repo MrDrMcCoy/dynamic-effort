@@ -48,6 +48,57 @@ To install ahead of time:
 bun run src/cli.ts setup
 ```
 
+## ACP agents
+
+Any agent that speaks the [Agent Client Protocol](https://agentclientprotocol.com)
+gets the same treatment through a proxy. Your editor starts the proxy instead
+of the agent, and the proxy starts the agent itself:
+
+```jsonc
+// Zed, or any ACP client, as the agent command
+"command": "bun",
+"args": ["run", "/path/to/dynamic-effort/src/cli.ts", "acp", "--", "opencode", "acp"]
+```
+
+Everything after `--` is the agent command; it defaults to `opencode acp`.
+The proxy is a pass-through except for one thing: before each prompt it sets
+the session's `thought_level` config option, using the value the decision
+maps onto. Agents advertise their own vocabulary (opencode offers `low`,
+`high`, and `max`), so the abstract level is mapped and never sent raw.
+
+The proxy stays out of the way in these cases:
+
+- The agent offers no `thought_level` option: prompts pass through unchanged.
+- You set the effort yourself in the editor: that session is left alone.
+- The agent rejects the value or does not answer in time: the prompt is
+  forwarded with the session's current effort.
+- The decision fails for any reason: nothing is changed.
+
+Coverage depends on the agent. The proxy speaks ACP version 1 and forwards
+anything it does not understand, so features such as session loading, modes,
+and MCP servers work as if the proxy were not there.
+
+## Environment variables
+
+The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.
+They sit below explicit options and above the defaults.
+
+| Variable | Meaning |
+| --- | --- |
+| `DYNAMIC_EFFORT_ENDPOINT` | Full SystemOne URL; skips the local server. |
+| `DYNAMIC_EFFORT_API_KEY` | Bearer token for that endpoint. |
+| `DYNAMIC_EFFORT_MODEL` | Model name sent to the endpoint. |
+| `DYNAMIC_EFFORT_DEFAULT_EFFORT` | Effort used when the answer is unsure. |
+| `DYNAMIC_EFFORT_MAX_EFFORT` | Upper bound for every decision. |
+| `DYNAMIC_EFFORT_MIN_CONFIDENCE` | Below this the answer is ignored. |
+| `DYNAMIC_EFFORT_STAKES_THRESHOLD` | At or above this the effort bumps. |
+| `DYNAMIC_EFFORT_TIMEOUT_MS` | Decision deadline. |
+| `DYNAMIC_EFFORT_MAX_STATE_CHARS` | Prompt tail sent to the model. |
+| `DYNAMIC_EFFORT_PORT` | Local server port. |
+| `DYNAMIC_EFFORT_THREADS` | Worker threads for the model. |
+| `DYNAMIC_EFFORT_JEV_PATH` | A jevos install to use as-is. |
+| `DYNAMIC_EFFORT_DEBUG` | `1` writes decision details to the log. |
+
 ## Options
 
 | Option | Default | Meaning |

@@ -5,25 +5,18 @@
 // does not pay for a second decision.
 
 import { Plugin } from "@opencode/plugin";
-import { join } from "node:path";
 import {
+  agentIncluded,
   applyEffort,
   buildCatalog,
   catalogKey,
-  cacheRoot,
-  createLogger,
-  defaultReuseDirs,
-  DecisionRouter,
-  jevLogPath,
-  JevInstaller,
-  JevServer,
-  releaseTarget,
+  createRuntime,
+  readConfig,
   type CatalogEntry,
   type CatalogModel,
   type EffortLevel,
   type StashedDecision,
 } from "../core/index.ts";
-import { agentIncluded, readConfig } from "./config.ts";
 import { DynamicEffort } from "./rpc.ts";
 
 export const PLUGIN_ID = "dynamic-effort";
@@ -55,61 +48,13 @@ export default {
   ...Plugin.define({
     id: PLUGIN_ID,
     async setup(ctx) {
-      const config = readConfig(ctx.options);
-      const root = cacheRoot();
-      const logger = createLogger({
-        debug: config.debug,
-        file: join(root, "dynamic-effort.log"),
-      });
+      const runtime = createRuntime({ config: readConfig(ctx.options) });
+      const { config, logger, router, requestOptions } = runtime;
       logger.debug("setup", {
         endpoint: config.endpoint ?? "local",
         defaultEffort: config.defaultEffort,
         maxEffort: config.maxEffort,
       });
-
-      // A configured endpoint means someone else runs the model: no server.
-      const usesLocalServer = !config.endpoint;
-      const target = releaseTarget(process.platform, process.arch);
-      const installer = target
-        ? new JevInstaller({
-            root,
-            logger,
-            target,
-            path: config.jevPath ?? null,
-            reuseDirs: [...config.jevReuseDirs, ...defaultReuseDirs()],
-          })
-        : null;
-      const server =
-        usesLocalServer && installer
-          ? new JevServer({
-              install: () => installer.ensure(),
-              port: config.jevPort,
-              threads: config.jevThreads,
-              logger,
-              logPath: jevLogPath(root),
-              root,
-              idleMs: config.jevIdleMs,
-            })
-          : null;
-
-      if (!target) {
-        logger.warn(
-          "no jevos release for this platform; leaving model defaults",
-          { platform: process.platform, arch: process.arch },
-        );
-      }
-
-      // Resolved per decision: a lazily started server has no URL until it
-      // answers, and a failed start must fall back to model defaults.
-      const requestOptions = async () => ({
-        endpoint: config.endpoint ?? (await server?.ensure()) ?? undefined,
-        apiKey: config.apiKey,
-        model: config.model,
-        timeoutMs: config.timeoutMs,
-      });
-
-      // Warm the server so the first prompt does not pay the model load.
-      if (server) void server.ensure().catch(() => {});
 
       let catalog = new Map<string, CatalogEntry>();
       const refreshCatalog = async () => {
@@ -160,20 +105,6 @@ export default {
           return false;
         }
       };
-
-      const router = new DecisionRouter({
-        policy: {
-          defaultEffort: config.defaultEffort,
-          maxEffort: config.maxEffort,
-          minConfidence: config.minConfidence,
-          stakesThreshold: config.stakesThreshold,
-        },
-        request: requestOptions,
-        maxStateChars: config.maxStateChars,
-        keywords: config.keywords,
-        questions: config.questions,
-        logger,
-      });
 
       await ctx.session.hook("prompt", async (event) => {
         const text = event.prompt?.text ?? "";
@@ -266,7 +197,7 @@ export default {
 
       return () => {
         void registration.dispose();
-        void server?.stop();
+        void runtime.stop();
       };
     },
   }),

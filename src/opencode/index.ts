@@ -171,6 +171,7 @@ export default {
         request: requestOptions,
         maxStateChars: config.maxStateChars,
         keywords: config.keywords,
+        questions: config.questions,
         logger,
       });
 

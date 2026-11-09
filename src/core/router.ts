@@ -16,6 +16,7 @@ import {
   type Decision,
   type DecisionPolicy,
   type DecisionRequestOptions,
+  type QuestionSpec,
 } from "./decision.ts";
 import type { Logger } from "./log.ts";
 import { NULL_LOGGER } from "./log.ts";
@@ -59,6 +60,8 @@ export interface RouterOptions {
     | (() => DecisionRequestOptions | Promise<DecisionRequestOptions>);
   readonly maxStateChars?: number;
   readonly keywords?: readonly string[];
+  /** Replaces the built-in question wording and criteria. */
+  readonly questions?: QuestionSpec;
   /** Sessions kept before the oldest is evicted. */
   readonly maxSessions?: number;
   readonly logger?: Logger;
@@ -128,6 +131,7 @@ export class DecisionRouter {
         buildState(text, {}, this.maxStateChars),
         this.options.policy,
         await this.requestOptions(),
+        this.options.questions,
       );
       return this.remember(event.sessionID, {
         promptHash,
@@ -175,6 +179,7 @@ export class DecisionRouter {
         state,
         this.options.policy,
         await this.requestOptions(),
+        this.options.questions,
       );
       return this.remember(event.sessionID, {
         promptHash: hashPrompt(`${event.sessionID}:${state}`),

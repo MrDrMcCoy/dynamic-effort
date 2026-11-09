@@ -22,6 +22,36 @@ const context = {
 };
 
 describe("DecisionRouter", () => {
+  test("passes custom questions to the decision request", async () => {
+    let body: { questions?: unknown } = {};
+    const fetchImpl: FetchLike = (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body)) as { questions?: unknown };
+      return stubDecision("low")();
+    }) as FetchLike;
+    const router = new DecisionRouter({
+      request: { fetch: fetchImpl },
+      questions: {
+        reasoningEffort: "custom effort question",
+        highStakes: "custom stakes question",
+        effortCriteria: {
+          minimal: "m",
+          low: "l",
+          medium: "md",
+          high: "h",
+          xhigh: "xh",
+        },
+      },
+    });
+
+    await router.onPrompt({ sessionID: "ses_1", text: "fix the bug" });
+
+    const questions = body.questions as Record<string, { instructions: string }>;
+    expect(questions["reasoning_effort"]?.instructions).toBe(
+      "custom effort question",
+    );
+    expect(questions["high_stakes"]?.instructions).toBe("custom stakes question");
+  });
+
   test("decides once per prompt and reuses the stash", async () => {
     let calls = 0;
     const fetchImpl: FetchLike = (async () => {

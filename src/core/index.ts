@@ -57,6 +57,14 @@ export {
   type EffortConfig,
 } from "./config.ts";
 
+export { envConfig } from "./env.ts";
+
+export {
+  createRuntime,
+  type Runtime,
+  type RuntimeOptions,
+} from "./runtime.ts";
+
 export {
   DecisionRouter,
   type ContextEvent,

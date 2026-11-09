@@ -111,8 +111,22 @@ describe("JevServer", () => {
     const url = await instance.ensure();
     expect(url).toBe(`http://127.0.0.1:${readyPort}`);
     expect(instance.pid).toBeNull();
+    expect(instance.owns).toBe(false);
     await instance.stop();
     expect(instance.url).toBeNull();
+  });
+
+  test("forgets an attached server after the idle timeout", async () => {
+    const instance = server({ idleMs: 0, idleCheckMs: 10 });
+    await instance.ensure();
+    expect(instance.owns).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    // The reference is dropped, but the process we attached to keeps running.
+    expect(instance.url).toBeNull();
+    expect(instance.pid).toBeNull();
+    expect(await probeHealth(readyPort, 500)).not.toBeNull();
   });
 
   test("returns null when the install fails", async () => {

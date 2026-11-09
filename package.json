@@ -16,7 +16,8 @@
     ".": "./src/opencode/index.ts",
     "./core": "./src/core/index.ts",
     "./rpc": "./src/opencode/rpc.ts",
-    "./tui": "./src/opencode/tui.ts"
+    "./tui": "./src/opencode/tui.ts",
+    "./acp": "./src/acp/index.ts"
   },
   "files": [
     "src"

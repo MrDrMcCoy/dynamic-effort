@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 // CLI for work a plugin cannot do before it loads: install the model, check
-// the install, and run the server in the foreground.
+// the install, run the server in the foreground, and proxy an ACP agent.
 //
-//   bun run src/cli.ts setup     install jevos if it is missing
-//   bun run src/cli.ts status    report the install and any running server
-//   bun run src/cli.ts serve     run the server until interrupted
+//   dynamic-effort setup            install jevos if it is missing
+//   dynamic-effort status           report the install and any running server
+//   dynamic-effort serve            run the server until interrupted
+//   dynamic-effort acp [cmd ...]    proxy an ACP agent on stdin and stdout
 
 import { join } from "node:path";
 import {
@@ -17,16 +18,23 @@ import {
   probeHealth,
   releaseTarget,
 } from "./core/index.ts";
+import {
+  DEFAULT_AGENT_ARGS,
+  DEFAULT_AGENT_COMMAND,
+  runAcpProxy,
+} from "./acp/index.ts";
 
 const FIRST_PORT = 8017;
 
+const USAGE =
+  "usage: dynamic-effort <setup|status|serve|acp> [-- command ...]\n" +
+  "  setup   download and verify jevos if it is missing\n" +
+  "  status  report the install and any running server\n" +
+  "  serve   run the server until interrupted\n" +
+  "  acp     proxy an ACP agent (default: opencode acp)";
+
 function usage(): never {
-  console.error(
-    "usage: dynamic-effort <setup|status|serve>\n" +
-      "  setup   download and verify jevos if it is missing\n" +
-      "  status  report the install and any running server\n" +
-      "  serve   run the server until interrupted",
-  );
+  console.error(USAGE);
   process.exit(2);
 }
 
@@ -49,6 +57,16 @@ function targetOrExit() {
     process.exit(1);
   }
   return target;
+}
+
+/** The agent to drive: `-- command args...`, or `opencode acp`. */
+function agentFromArgs(rest: readonly string[]) {
+  const split = rest.indexOf("--");
+  const [command, ...args] = split >= 0 ? rest.slice(split + 1) : [];
+  if (!command) {
+    return { command: DEFAULT_AGENT_COMMAND, args: DEFAULT_AGENT_ARGS };
+  }
+  return { command, args };
 }
 
 const command = process.argv[2];
@@ -101,6 +119,14 @@ switch (command) {
       process.once("SIGTERM", () => resolve());
     });
     await server.stop();
+    break;
+  }
+
+  case "acp": {
+    await runAcpProxy({
+      agent: agentFromArgs(process.argv.slice(3)),
+      config: { debug: true },
+    });
     break;
   }
 

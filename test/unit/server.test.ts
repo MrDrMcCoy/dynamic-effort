@@ -120,7 +120,8 @@ describe("JevServer", () => {
     expect(await instance.ensure()).toBeNull();
   });
 
-  test("returns null when the spawned server never becomes ready", async () => {
+  const posix = process.platform === "win32" ? test.skip : test;
+  posix("returns null when the spawned server never becomes ready", async () => {
     const binary = join(root, "fake-jev");
     await writeFile(binary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
     const install: JevInstall = {

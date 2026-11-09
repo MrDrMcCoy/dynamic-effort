@@ -1,10 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { APP_DIR, cacheRoot, jevInstallDir, jevLogPath } from "../../src/core/paths.ts";
+import { join } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import {
+  APP_DIR,
+  cacheRoot,
+  jevInstallDir,
+  jevLogPath,
+} from "../../src/core/paths.ts";
 import { createLogger, NULL_LOGGER } from "../../src/core/log.ts";
 
 describe("cacheRoot", () => {
   test("uses XDG_CACHE_HOME when set", () => {
-    expect(cacheRoot({ XDG_CACHE_HOME: "/tmp/xdg" })).toBe(`/tmp/xdg/${APP_DIR}`);
+    const xdg = join(tmpdir(), "xdg");
+    expect(cacheRoot({ XDG_CACHE_HOME: xdg })).toBe(join(xdg, APP_DIR));
   });
 
   test("ignores a blank XDG_CACHE_HOME", () => {
@@ -12,19 +20,35 @@ describe("cacheRoot", () => {
   });
 
   test("falls back to the home cache directory", () => {
-    expect(cacheRoot({})).toMatch(new RegExp(`\\.cache/${APP_DIR}$`));
+    expect(cacheRoot({})).toBe(join(homedir(), ".cache", APP_DIR));
+  });
+
+  test("uses LOCALAPPDATA on Windows", () => {
+    const local = join(tmpdir(), "local");
+    expect(cacheRoot({ LOCALAPPDATA: local }, "win32")).toBe(
+      join(local, APP_DIR),
+    );
+  });
+
+  test("ignores LOCALAPPDATA elsewhere", () => {
+    const local = join(tmpdir(), "local");
+    expect(cacheRoot({ LOCALAPPDATA: local }, "linux")).toBe(
+      join(homedir(), ".cache", APP_DIR),
+    );
   });
 });
 
 describe("install paths", () => {
   test("names the install after version and target", () => {
-    expect(jevInstallDir("jevos-v5", "linux-x64", "/root")).toBe(
-      "/root/jev/jevos-v5-linux-x64",
+    const root = join(tmpdir(), "root");
+    expect(jevInstallDir("jevos-v5", "linux-x64", root)).toBe(
+      join(root, "jev", "jevos-v5-linux-x64"),
     );
   });
 
   test("puts the server log in the cache root", () => {
-    expect(jevLogPath("/root")).toBe("/root/jev.log");
+    const root = join(tmpdir(), "root");
+    expect(jevLogPath(root)).toBe(join(root, "jev.log"));
   });
 });
 
@@ -76,13 +100,16 @@ describe("createLogger", () => {
   });
 
   test("appends to a file and survives an unwritable path", () => {
-    const path = `/tmp/opencode/dynamic-effort-log-${process.pid}.log`;
+    const path = join(tmpdir(), `dynamic-effort-log-${process.pid}.log`);
     const logger = createLogger({ debug: true, file: path });
     logger.debug("to file");
     const text = require("node:fs").readFileSync(path, "utf8");
     expect(text).toContain("to file");
 
-    const broken = createLogger({ debug: true, file: "/proc/nope/x.log" });
+    const broken = createLogger({
+      debug: true,
+      file: join(path, "nested", "x.log"),
+    });
     expect(() => broken.info("no crash")).not.toThrow();
   });
 });

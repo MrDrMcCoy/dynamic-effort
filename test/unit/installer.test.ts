@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,10 +30,10 @@ async function sha256(path: string): Promise<string> {
   return createHash("sha256").update(await readFile(path)).digest("hex");
 }
 
-async function sh(command: string, cwd: string): Promise<void> {
-  const result = Bun.spawnSync(["sh", "-c", command], { cwd });
+function tar(args: string[], cwd: string): void {
+  const result = Bun.spawnSync(["tar", ...args], { cwd });
   if (result.exitCode !== 0) {
-    throw new Error(`${command}: ${result.stderr.toString()}`);
+    throw new Error(`tar ${args.join(" ")}: ${result.stderr.toString()}`);
   }
 }
 
@@ -45,7 +45,7 @@ beforeAll(async () => {
   const binaryStage = join(fixtures, "binary-stage");
   await mkdir(join(binaryStage, "jev"), { recursive: true });
   await writeFile(join(binaryStage, "jev", "jev"), BINARY_SCRIPT, { mode: 0o755 });
-  await sh(`tar -czf ${join(fixtures, BINARY_ASSET)} -C ${binaryStage} jev`, fixtures);
+  tar(["-czf", join(fixtures, BINARY_ASSET), "-C", binaryStage, "jev"], fixtures);
 
   // Model archive: model/ at the root, stored (not deflated) by design.
   await writeFile(
@@ -99,7 +99,12 @@ function installer(overrides: Record<string, unknown> = {}) {
   });
 }
 
-describe("JevInstaller", () => {
+// The fixtures are POSIX: a shell-script stand-in for the binary, executed
+// to check the usage probe. The CI install-smoke job covers the real
+// download path on Windows.
+const posix = process.platform === "win32" ? describe.skip : describe;
+
+posix("JevInstaller", () => {
   test("inspect reports null for a missing install", async () => {
     expect(await installer().inspect()).toBeNull();
   });
@@ -158,10 +163,9 @@ describe("JevInstaller", () => {
     const existing = await installer().find();
     const shared = join(root, "shared-cache");
     await mkdir(join(shared, `${VERSION}-linux-x64`), { recursive: true });
-    await sh(
-      `cp -r ${existing!.root}/. ${join(shared, `${VERSION}-linux-x64`)}`,
-      root,
-    );
+    await cp(existing!.root, join(shared, `${VERSION}-linux-x64`), {
+      recursive: true,
+    });
     const found = await installer({
       root: join(root, "cache-shared"),
       reuseDirs: [shared],
@@ -259,7 +263,7 @@ describe("JevInstaller", () => {
   });
 });
 
-describe("flatten", () => {
+posix("flatten", () => {
   test("moves a nested folder's contents up one level", async () => {
     const directory = join(root, "flatten");
     await mkdir(join(directory, "jev"), { recursive: true });

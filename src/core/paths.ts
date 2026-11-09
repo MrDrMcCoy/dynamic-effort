@@ -7,10 +7,13 @@ import { join } from "node:path";
 export const APP_DIR = "dynamic-effort";
 
 /** Root for downloads, logs, and manifests. */
-export function cacheRoot(env: NodeJS.ProcessEnv = process.env): string {
+export function cacheRoot(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): string {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   if (xdg) return join(xdg, APP_DIR);
-  if (process.platform === "win32") {
+  if (platform === "win32") {
     const local = env["LOCALAPPDATA"]?.trim();
     if (local) return join(local, APP_DIR);
   }

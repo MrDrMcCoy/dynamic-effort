@@ -7,10 +7,9 @@
   // removes a plugin. The target must match the plugin's DECLARED id
   // ("smart-reasoning" in its source), not the npm package name.
   //
-  // When the dynamic-effort OpenCode plugin is ready for testing, copy the
-  // commented entry below and point "package" at this repo's plugin
-  // directory. Relative plugin paths resolve from the directory containing
-  // this config file.
+  // The "." package below loads this repo's own plugin for local testing.
+  // It resolves against the repository root (where package.json lives), not
+  // against the directory that holds this config file.
   "plugins": [
     "-smart-reasoning",
     { "package": ".", "options": { "debug": true } }

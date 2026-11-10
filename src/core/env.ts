@@ -26,6 +26,10 @@ export function envConfig(
   const maxStateChars = readNumber("MAX_STATE_CHARS");
   const timeoutMs = readNumber("TIMEOUT_MS");
   const threads = readNumber("THREADS");
+  const telemetryCapacity = readNumber("TELEMETRY_CAPACITY");
+  const telemetryPromptChars = readNumber("TELEMETRY_PROMPT_CHARS");
+  const telemetry = read("TELEMETRY");
+  const telemetryPersist = read("TELEMETRY_PERSIST");
 
   return {
     endpoint: read("ENDPOINT"),
@@ -41,5 +45,19 @@ export function envConfig(
     jevPort: port,
     jevThreads: threads === undefined ? undefined : Math.floor(threads),
     debug: read("DEBUG") === "1" || read("DEBUG") === "true" ? true : undefined,
+    telemetry: telemetry === undefined ? undefined : telemetry !== "0" &&
+      telemetry !== "false",
+    telemetryPersist:
+      telemetryPersist === undefined
+        ? undefined
+        : telemetryPersist === "1" || telemetryPersist === "true",
+    telemetryCapacity:
+      telemetryCapacity === undefined
+        ? undefined
+        : Math.floor(telemetryCapacity),
+    telemetryPromptChars:
+      telemetryPromptChars === undefined
+        ? undefined
+        : Math.floor(telemetryPromptChars),
   };
 }

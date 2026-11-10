@@ -41,6 +41,16 @@ function build(options: {
   configOptions?: unknown;
   applyEffort?: boolean;
   calls?: string[];
+  onApplied?: (
+    sessionId: string,
+    decision: unknown,
+    value: string | null,
+    prompt: string,
+  ) => void;
+  onUsage?: (
+    sessionId: string,
+    usage: { input: number; output: number; reasoning: number },
+  ) => void;
 }) {
   const client = new FakeTransport();
   const agent = new FakeTransport();
@@ -50,6 +60,8 @@ function build(options: {
     router: router(options.decide ?? "high", options.calls ?? []),
     applyEffort: options.applyEffort,
     applyTimeoutMs: 50,
+    onApplied: options.onApplied as never,
+    onUsage: options.onUsage,
   });
   proxy.start();
   return { client, agent, proxy };
@@ -307,5 +319,110 @@ describe("AcpProxy", () => {
 
     // The selector is gone, so the prompt goes through unmodified.
     expect(agent.requests("session/set_config_option").length).toBe(0);
+  });
+
+  test("reports the applied value and the prompt for telemetry", async () => {
+    const applied: Array<[string, string | null, string]> = [];
+    const { client, agent } = build({
+      configOptions: effortOptions,
+      onApplied: (sessionId, _decision, value, prompt) => {
+        applied.push([sessionId, value, prompt]);
+      },
+    });
+    client.push({ jsonrpc: "2.0", id: 1, method: "session/new", params: {} });
+    await openSession(agent, effortOptions);
+
+    client.push({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "session/prompt",
+      params: {
+        sessionId: "ses_1",
+        prompt: [{ type: "text", text: "refactor the parser" }],
+      },
+    });
+    await answerConfig(agent);
+
+    expect(applied).toEqual([["ses_1", "high", "refactor the parser"]]);
+  });
+
+  test("reports a null value when nothing could be applied", async () => {
+    const applied: Array<string | null> = [];
+    const { client, agent } = build({
+      configOptions: noEffortOptions,
+      onApplied: (_sessionId, _decision, value) => {
+        applied.push(value);
+      },
+    });
+    client.push({ jsonrpc: "2.0", id: 1, method: "session/new", params: {} });
+    await openSession(agent, noEffortOptions);
+
+    client.push({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "session/prompt",
+      params: { sessionId: "ses_1", prompt: [{ type: "text", text: "hi" }] },
+    });
+    await settle();
+
+    expect(applied).toEqual([null]);
+  });
+
+  test("reads the token counts from the prompt response", async () => {
+    const usage: Array<{ input: number; output: number; reasoning: number }> =
+      [];
+    const { client, agent } = build({
+      configOptions: effortOptions,
+      onUsage: (_sessionId, snapshot) => usage.push(snapshot),
+    });
+    client.push({ jsonrpc: "2.0", id: 1, method: "session/new", params: {} });
+    await openSession(agent, effortOptions);
+
+    client.push({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "session/prompt",
+      params: { sessionId: "ses_1", prompt: [{ type: "text", text: "hi" }] },
+    });
+    await answerConfig(agent);
+    const prompt = agent.requests("session/prompt").at(-1);
+    agent.push({
+      jsonrpc: "2.0",
+      id: prompt?.id as string,
+      result: {
+        stopReason: "end_turn",
+        usage: { inputTokens: 12, outputTokens: 34, thoughtTokens: 56 },
+      },
+    });
+    await settle();
+
+    expect(usage).toEqual([{ input: 12, output: 34, reasoning: 56 }]);
+  });
+
+  test("ignores a prompt response without usage", async () => {
+    const usage: unknown[] = [];
+    const { client, agent } = build({
+      configOptions: effortOptions,
+      onUsage: (_sessionId, snapshot) => usage.push(snapshot),
+    });
+    client.push({ jsonrpc: "2.0", id: 1, method: "session/new", params: {} });
+    await openSession(agent, effortOptions);
+
+    client.push({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "session/prompt",
+      params: { sessionId: "ses_1", prompt: [{ type: "text", text: "hi" }] },
+    });
+    await answerConfig(agent);
+    const prompt = agent.requests("session/prompt").at(-1);
+    agent.push({
+      jsonrpc: "2.0",
+      id: prompt?.id as string,
+      result: { stopReason: "end_turn" },
+    });
+    await settle();
+
+    expect(usage).toEqual([]);
   });
 });

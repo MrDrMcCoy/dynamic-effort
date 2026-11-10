@@ -48,6 +48,21 @@ export interface ProxyOptions {
   readonly applyTimeoutMs?: number;
   /** Called after a decision, for logging and telemetry. */
   readonly onDecision?: (sessionId: string, decision: StashedDecision) => void;
+  /**
+   * Called after the agent accepted an effort, or with null when nothing
+   * could be applied. The prompt is passed so telemetry can keep it.
+   */
+  readonly onApplied?: (
+    sessionId: string,
+    decision: StashedDecision,
+    value: string | null,
+    prompt: string,
+  ) => void;
+  /** Token counts from a prompt response, when the agent sends them. */
+  readonly onUsage?: (
+    sessionId: string,
+    usage: { input: number; output: number; reasoning: number },
+  ) => void;
   /** Called once when either side closes. */
   readonly onClose?: () => void;
 }
@@ -198,16 +213,33 @@ export class AcpProxy {
       });
       if (decision) {
         this.options.onDecision?.(sessionId, decision);
-        await this.applyDecision(sessionId, decision);
+        await this.applyDecision(sessionId, decision, text);
       }
     }
-    this.forward(message);
+    this.forward(message, (response) => this.learnUsage(sessionId, response));
+  }
+
+  /** Reads the token counts an agent reports with a prompt response. */
+  private learnUsage(sessionId: string, response: RpcResponse): void {
+    const usage = (response.result as { usage?: unknown } | undefined)?.usage;
+    if (!sessionId || !usage || typeof usage !== "object") return;
+    const raw = usage as Record<string, unknown>;
+    const number = (key: string): number => {
+      const value = raw[key];
+      return typeof value === "number" && Number.isFinite(value) ? value : 0;
+    };
+    this.options.onUsage?.(sessionId, {
+      input: number("inputTokens"),
+      output: number("outputTokens"),
+      reasoning: number("thoughtTokens"),
+    });
   }
 
   /** Sets the decided level through the agent's thought-level selector. */
   private async applyDecision(
     sessionId: string,
     decision: StashedDecision,
+    prompt: string,
   ): Promise<void> {
     const state = this.session(sessionId);
     if (!state.option) {
@@ -215,6 +247,7 @@ export class AcpProxy {
         this.reportedNoOption = true;
         this.logger.debug("the agent offers no thought-level option");
       }
+      this.options.onApplied?.(sessionId, decision, null, prompt);
       return;
     }
     const value = mapEffort(state.option, decision.effort);
@@ -224,9 +257,13 @@ export class AcpProxy {
         effort: decision.effort,
         values: state.option.values.map((entry) => entry.value),
       });
+      this.options.onApplied?.(sessionId, decision, null, prompt);
       return;
     }
-    if (isCurrent(state.option, value)) return;
+    if (isCurrent(state.option, value)) {
+      this.options.onApplied?.(sessionId, decision, value, prompt);
+      return;
+    }
 
     const response = await this.call("session/set_config_option", {
       sessionId,
@@ -239,6 +276,7 @@ export class AcpProxy {
         value,
         error: response.error.message,
       });
+      this.options.onApplied?.(sessionId, decision, null, prompt);
       return;
     }
     state.option = { ...state.option, current: value };
@@ -247,6 +285,7 @@ export class AcpProxy {
       effort: decision.effort,
       value,
     });
+    this.options.onApplied?.(sessionId, decision, value, prompt);
   }
 
   private learnSession(response: RpcResponse): void {

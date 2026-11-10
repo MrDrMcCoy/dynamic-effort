@@ -48,6 +48,13 @@ export interface EffortConfig {
   readonly jevReuseDirs: readonly string[];
   /** A tuned question set; absent means the built-in wording. */
   readonly questions?: QuestionSpec;
+  /** Keep a local ring buffer of decisions; in memory only by default. */
+  readonly telemetry: boolean;
+  /** Write the buffer to disk when the adapter shuts down. */
+  readonly telemetryPersist: boolean;
+  readonly telemetryCapacity: number;
+  /** Prompt characters kept per entry; 0 drops the prompt text. */
+  readonly telemetryPromptChars: number;
 }
 
 export const DEFAULT_CONFIG: EffortConfig = {
@@ -66,6 +73,10 @@ export const DEFAULT_CONFIG: EffortConfig = {
   jevThreads: null,
   jevIdleMs: 10 * 60_000,
   jevReuseDirs: [],
+  telemetry: true,
+  telemetryPersist: false,
+  telemetryCapacity: 500,
+  telemetryPromptChars: 500,
 };
 
 function stringList(value: unknown): string[] | undefined {
@@ -76,6 +87,12 @@ function stringList(value: unknown): string[] | undefined {
 function positiveNumber(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
   return value > 0 ? value : undefined;
+}
+
+/** Accepts zero, which means "keep nothing" for the prompt text. */
+function nonNegativeNumber(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return value >= 0 ? value : undefined;
 }
 
 function effort(value: unknown): EffortLevel | undefined {
@@ -142,6 +159,14 @@ export function readConfig(options: unknown): EffortConfig {
     jevReuseDirs:
       stringList(raw["jevReuseDirs"]) ?? DEFAULT_CONFIG.jevReuseDirs,
     questions: readQuestions(raw["questions"]),
+    telemetry: raw["telemetry"] !== false,
+    telemetryPersist: raw["telemetryPersist"] === true,
+    telemetryCapacity:
+      positiveNumber(raw["telemetryCapacity"]) ??
+      DEFAULT_CONFIG.telemetryCapacity,
+    telemetryPromptChars:
+      nonNegativeNumber(raw["telemetryPromptChars"]) ??
+      DEFAULT_CONFIG.telemetryPromptChars,
   };
 }
 

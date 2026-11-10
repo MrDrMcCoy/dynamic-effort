@@ -54,6 +54,7 @@ export {
   DEFAULT_EXCLUDE_AGENTS,
   DEFAULT_JEV_PORT,
   readConfig,
+  readQuestionSpec,
   type EffortConfig,
 } from "./config.ts";
 
@@ -84,6 +85,20 @@ export {
   type TelemetryOptions,
   type UsageSnapshot,
 } from "./telemetry.ts";
+
+export {
+  buildTuningPrompt,
+  describeProposal,
+  MAX_TUNE_ENTRIES,
+  MAX_TUNE_PROPOSALS,
+  parseTuningProposal,
+  readLatestProposal,
+  summarizeTelemetry,
+  writeTuningProposal,
+  type TuningProposal,
+  type TuningRecord,
+  type TuningStats,
+} from "./tune.ts";
 
 export {
   JevInstaller,

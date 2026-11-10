@@ -18,6 +18,7 @@ import {
   type StashedDecision,
 } from "../core/index.ts";
 import { DynamicEffort } from "./rpc.ts";
+import { executeTune, tuneDirectory, TUNE_COMMAND } from "./tune.ts";
 
 export const PLUGIN_ID = "dynamic-effort";
 
@@ -86,6 +87,49 @@ export default {
           const record = records.get(sessionID);
           return record ? defined(record) : {};
         },
+      });
+
+      // `/effort-tune` reviews the recorded decisions with the main model.
+      // The proposal lands on disk; applying it stays manual.
+      await ctx.command.transform((editor) => {
+        editor.add({
+          name: TUNE_COMMAND,
+          description: "Review recorded decisions and propose tuning",
+          async execute({ sessionID }) {
+            await executeTune(
+              {
+                config,
+                logger,
+                telemetry,
+                telemetryPath: runtime.telemetryPath,
+                directory: tuneDirectory(runtime.root),
+                async generate(prompt) {
+                  const session = (await ctx.session.get({ sessionID })) as {
+                    model?: {
+                      id: string;
+                      providerID: string;
+                      variant?: string;
+                    } | null;
+                  };
+                  const model = session?.model ?? null;
+                  const out = await ctx.experimental.generate.text({
+                    prompt,
+                    ...(model ? { model } : {}),
+                  });
+                  return out.text;
+                },
+                async report(target, text) {
+                  await ctx.session.synthetic({
+                    sessionID: target,
+                    text,
+                    description: "effort tuning",
+                  });
+                },
+              },
+              sessionID,
+            );
+          },
+        });
       });
 
       const publish = async (record: DecisionRecord) => {

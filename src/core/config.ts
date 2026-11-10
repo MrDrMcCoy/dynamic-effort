@@ -158,7 +158,7 @@ export function readConfig(options: unknown): EffortConfig {
     jevPath,
     jevReuseDirs:
       stringList(raw["jevReuseDirs"]) ?? DEFAULT_CONFIG.jevReuseDirs,
-    questions: readQuestions(raw["questions"]),
+    questions: readQuestionSpec(raw["questions"]),
     telemetry: raw["telemetry"] !== false,
     telemetryPersist: raw["telemetryPersist"] === true,
     telemetryCapacity:
@@ -173,7 +173,7 @@ export function readConfig(options: unknown): EffortConfig {
 const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh"] as const;
 
 /** Accepts a full replacement question set only when every field is present. */
-function readQuestions(value: unknown): QuestionSpec | undefined {
+export function readQuestionSpec(value: unknown): QuestionSpec | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }

@@ -31,6 +31,10 @@ describe("readConfig", () => {
       jevPath: "/opt/jev",
       jevReuseDirs: ["/other/jev"],
       keywords: ["think"],
+      telemetry: false,
+      telemetryPersist: true,
+      telemetryCapacity: 50,
+      telemetryPromptChars: 0,
     });
 
     expect(config.endpoint).toBe("http://127.0.0.1:9930/v1/systemone");
@@ -50,6 +54,11 @@ describe("readConfig", () => {
     expect(config.jevPath).toBe("/opt/jev");
     expect(config.jevReuseDirs).toEqual(["/other/jev"]);
     expect(config.keywords).toEqual(["think"]);
+    expect(config.telemetry).toBe(false);
+    expect(config.telemetryPersist).toBe(true);
+    expect(config.telemetryCapacity).toBe(50);
+    // Zero is meaningful here: keep no prompt text.
+    expect(config.telemetryPromptChars).toBe(0);
   });
 
   test("ignores invalid values", () => {

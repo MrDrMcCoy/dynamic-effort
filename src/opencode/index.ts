@@ -11,9 +11,9 @@ import {
   buildCatalog,
   catalogKey,
   createRuntime,
-  readConfig,
   type CatalogEntry,
   type CatalogModel,
+  type EffortConfig,
   type EffortLevel,
   type StashedDecision,
 } from "../core/index.ts";
@@ -48,7 +48,12 @@ export default {
   ...Plugin.define({
     id: PLUGIN_ID,
     async setup(ctx) {
-      const runtime = createRuntime({ config: readConfig(ctx.options) });
+      // Pass the raw options, not readConfig() output: a full config object
+      // would shadow every DYNAMIC_EFFORT_* variable. createRuntime merges
+      // and validates the layers itself.
+      const runtime = createRuntime({
+        config: (ctx.options ?? {}) as Partial<EffortConfig>,
+      });
       const { config, logger, router, requestOptions, telemetry } = runtime;
       logger.debug("setup", {
         endpoint: config.endpoint ?? "local",

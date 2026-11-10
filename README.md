@@ -138,6 +138,28 @@ the mapping must happen here rather than in the harness.
 Neither harness can change effort mid-session through a hook, so a decision
 covers the whole run. A failed decision runs the harness unchanged.
 
+## goose and Hermes
+
+goose exposes an ACP agent server, so the proxy covers it with no new
+integration:
+
+```sh
+dynamic-effort acp -- goose acp
+```
+
+The proxy reads the `thought_level` config option goose publishes and sets it
+before each prompt, exactly as it does for `opencode acp`.
+
+Hermes takes a reasoning level at launch, which the launch adapter handles:
+
+```sh
+dynamic-effort launch hermes -- -z "refactor the parser"
+```
+
+Hermes receives `--reasoning <level>` and accepts `none` through `max`. The
+level is mapped onto that range, so `minimal` stays `minimal` and any decision
+above `max` is capped.
+
 ## Environment variables
 
 The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.

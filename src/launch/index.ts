@@ -16,6 +16,8 @@ export interface LaunchAdapter {
   effortArgs(level: string): string[];
   /** Flags whose next token is a value, not the prompt. */
   readonly valueFlags: readonly string[];
+  /** Flags whose next token is the prompt itself. */
+  readonly promptFlags?: readonly string[];
   /** Subcommands that can precede the prompt. */
   readonly subcommands?: readonly string[];
 }
@@ -69,20 +71,49 @@ export const CLAUDE_ADAPTER: LaunchAdapter = {
   ],
 };
 
+export const HERMES_ADAPTER: LaunchAdapter = {
+  name: "hermes",
+  levels: ["minimal", "low", "medium", "high", "xhigh", "max"],
+  effortArgs: (level) => ["--reasoning", level],
+  valueFlags: [
+    "--reasoning",
+    "-m",
+    "--model",
+    "--provider",
+    "-t",
+    "--toolsets",
+    "--skills",
+    "--in",
+    "--resume",
+    "-r",
+    "--continue",
+    "--image",
+    "--api-key",
+    "--format",
+    "--usage-file",
+  ],
+  promptFlags: ["-z", "-q"],
+  subcommands: ["chat", "run"],
+};
+
 export const ADAPTERS: Record<string, LaunchAdapter> = {
   codex: CODEX_ADAPTER,
   claude: CLAUDE_ADAPTER,
+  hermes: HERMES_ADAPTER,
 };
 
 /**
- * The first positional argument, skipping flags, the values they consume, and
- * one leading subcommand. A `--` separator ends flag parsing.
+ * The prompt from an argument list: the value after a prompt flag such as
+ * `-z`, or the first positional argument. Flags, the values they consume, and
+ * one leading subcommand are skipped. A `--` separator ends flag parsing.
  */
 export function findPrompt(
   args: readonly string[],
-  valueFlags: readonly string[],
-  subcommands: readonly string[] = [],
+  adapter: Pick<LaunchAdapter, "valueFlags" | "promptFlags" | "subcommands">,
 ): string | null {
+  const valueFlags = adapter.valueFlags;
+  const promptFlags = adapter.promptFlags ?? [];
+  const subcommands = adapter.subcommands ?? [];
   let flagsDone = false;
   let subcommandDone = false;
   for (let index = 0; index < args.length; index += 1) {
@@ -92,6 +123,7 @@ export function findPrompt(
       continue;
     }
     if (!flagsDone && arg.startsWith("-")) {
+      if (promptFlags.includes(arg)) return args[index + 1] ?? null;
       const takesValue = !arg.includes("=") && valueFlags.includes(arg);
       if (takesValue) index += 1;
       continue;
@@ -176,7 +208,7 @@ export async function runLaunch(options: LaunchOptions): Promise<number> {
   let extra: string[] = [];
   try {
     const prompt =
-      findPrompt(args, adapter.valueFlags, adapter.subcommands) ??
+      findPrompt(args, adapter) ??
       (await readStdin());
     if (prompt) {
       const decision = await router.onPrompt({

@@ -9,6 +9,7 @@ import {
   ADAPTERS,
   CLAUDE_ADAPTER,
   CODEX_ADAPTER,
+  HERMES_ADAPTER,
   findPrompt,
   launchLevel,
   runLaunch,
@@ -57,34 +58,38 @@ async function scratch(): Promise<string> {
 }
 
 describe("findPrompt", () => {
-  test("takes the first positional argument", () => {
-    expect(findPrompt(["exec", "fix the build"], CODEX_ADAPTER.valueFlags))
-      .toBe("exec");
+  test("takes the prompt after a subcommand", () => {
+    expect(findPrompt(["exec", "fix the build"], CODEX_ADAPTER))
+      .toBe("fix the build");
+  });
+
+  test("takes the value of a prompt flag", () => {
+    const args = ["-m", "gpt-6.1", "-z", "say hi"];
+    expect(findPrompt(args, HERMES_ADAPTER)).toBe("say hi");
   });
 
   test("skips flags and their values", () => {
     const args = ["-m", "gpt-6.1-sol", "--sandbox", "read-only", "do it"];
-    expect(findPrompt(args, CODEX_ADAPTER.valueFlags)).toBe("do it");
+    expect(findPrompt(args, CODEX_ADAPTER)).toBe("do it");
   });
 
   test("does not consume a value after an equals form", () => {
     const args = ["--model=gpt-6.1", "do it"];
-    expect(findPrompt(args, CLAUDE_ADAPTER.valueFlags)).toBe("do it");
+    expect(findPrompt(args, CLAUDE_ADAPTER)).toBe("do it");
   });
 
   test("skips a subcommand before the prompt", () => {
     const args = ["exec", "--sandbox", "read-only", "do it"];
-    const flags = CODEX_ADAPTER.valueFlags;
-    expect(findPrompt(args, flags, CODEX_ADAPTER.subcommands)).toBe("do it");
+    expect(findPrompt(args, CODEX_ADAPTER)).toBe("do it");
   });
 
   test("treats everything after a separator as positional", () => {
     const args = ["--", "-m", "a value"];
-    expect(findPrompt(args, CODEX_ADAPTER.valueFlags)).toBe("-m");
+    expect(findPrompt(args, CODEX_ADAPTER)).toBe("-m");
   });
 
   test("returns null when there is no positional argument", () => {
-    expect(findPrompt(["-m", "x"], CODEX_ADAPTER.valueFlags)).toBeNull();
+    expect(findPrompt(["-m", "x"], CODEX_ADAPTER)).toBeNull();
   });
 });
 
@@ -221,6 +226,10 @@ describe("runLaunch", () => {
   });
 
   test("exposes both adapters by name", () => {
-    expect(Object.keys(ADAPTERS).sort()).toEqual(["claude", "codex"]);
+    expect(Object.keys(ADAPTERS).sort()).toEqual([
+      "claude",
+      "codex",
+      "hermes",
+    ]);
   });
 });

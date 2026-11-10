@@ -48,6 +48,9 @@ To install ahead of time:
 bun run src/cli.ts setup
 ```
 
+From a build, the same command is `node dist/cli.js setup` or, once the
+package is published, `npx @mrdrmccoy/dynamic-effort setup`.
+
 ## ACP agents
 
 Any agent that speaks the [Agent Client Protocol](https://agentclientprotocol.com)
@@ -61,6 +64,8 @@ of the agent, and the proxy starts the agent itself:
 ```
 
 Everything after `--` is the agent command; it defaults to `opencode acp`.
+A published install uses the built entry instead:
+`npx @mrdrmccoy/dynamic-effort acp -- opencode acp`.
 The proxy is a pass-through except for one thing: before each prompt it sets
 the session's `thought_level` config option, using the value the decision
 maps onto. Agents advertise their own vocabulary (opencode offers `low`,
@@ -140,9 +145,12 @@ bun install
 bun run typecheck
 bun test test/unit
 bun test test/integration   # needs a jevos server on port 8017
+bun run build               # writes the Node-compatible dist/
+node dist/cli.js status
 ```
 
-The integration suite skips itself when no server answers.
+The integration suite skips itself when no server answers. `dist/` is
+compiled by `tsc` and is not committed; `npm pack` builds it first.
 
 ## License
 

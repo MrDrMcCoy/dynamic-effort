@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createServer, type Server } from "node:http";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { JevServer, portFree, probeHealth } from "../../src/core/jev/server.ts";
@@ -24,7 +24,9 @@ function listen(server: Server): Promise<number> {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
-      resolve(typeof address === "object" && address !== null ? address.port : 0);
+      const port =
+        typeof address === "object" && address !== null ? address.port : 0;
+      resolve(port);
     });
   });
 }
@@ -134,8 +136,105 @@ describe("JevServer", () => {
     expect(await instance.ensure()).toBeNull();
   });
 
+  const posixOnly = process.platform === "win32" ? test.skip : test;
+  posixOnly("keeps one server when a claim is held", async () => {
+    // A rival process holds the claim and is still loading its model. The
+    // second process must wait for that server, not start another.
+    const reservation = createServer();
+    const port = await listen(reservation);
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+    await writeFile(join(root, `jev-${port}.claim`), "1");
+
+    let spawned = false;
+    const winner = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(READY_BODY));
+    });
+    setTimeout(() => {
+      winner.listen(port, "127.0.0.1");
+    }, 300);
+
+    const instance = server({
+      port,
+      startupTimeoutMs: 5_000,
+      probeTimeoutMs: 100,
+      install: async () => {
+        spawned = true;
+        throw new Error("must not install while another process claims");
+      },
+    });
+
+    expect(await instance.ensure()).toBe(`http://127.0.0.1:${port}`);
+    expect(spawned).toBe(false);
+    expect(instance.owns).toBe(false);
+    await instance.stop();
+    await new Promise<void>((resolve) => winner.close(() => resolve()));
+  });
+
+  posixOnly("takes over a stale claim", async () => {
+    const reservation = createServer();
+    const port = await listen(reservation);
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+
+    const claimPath = join(root, `jev-${port}.claim`);
+    await writeFile(claimPath, "1");
+    const old = new Date(Date.now() - 10 * 60_000);
+    await utimes(claimPath, old, old);
+
+    // The stale claim must not block a fresh start; the install failure
+    // proves the code got past the claim.
+    const instance = server({
+      port,
+      startupTimeoutMs: 1_000,
+      install: async () => {
+        throw new Error("no install");
+      },
+    });
+    expect(await instance.ensure()).toBeNull();
+  });
+
+  posixOnly("attaches when another process wins the port", async () => {
+    // Reserve a port and release it, so the port is free when we check it and
+    // another process can take it while our own child is starting.
+    const reservation = createServer();
+    const port = await listen(reservation);
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+
+    const binary = join(root, "losing-jev");
+    await writeFile(binary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+    const winner = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(READY_BODY));
+    });
+    setTimeout(() => {
+      winner.listen(port, "127.0.0.1");
+    }, 200);
+
+    const instance = server({
+      port,
+      startupTimeoutMs: 3_000,
+      probeTimeoutMs: 100,
+      install: async () => ({
+        root,
+        binary,
+        modelDir: join(root, "model"),
+        version: "jevos-v5",
+        target: "linux-x64",
+      }),
+    });
+
+    expect(await instance.ensure()).toBe(`http://127.0.0.1:${port}`);
+    expect(instance.owns).toBe(false);
+    expect(instance.pid).toBeNull();
+    await instance.stop();
+    // The winner still serves: attaching must not kill another process.
+    expect(await probeHealth(port, 500)).not.toBeNull();
+    await new Promise<void>((resolve) => winner.close(() => resolve()));
+  });
+
   const posix = process.platform === "win32" ? test.skip : test;
-  posix("returns null when the spawned server never becomes ready", async () => {
+  posix("returns null when the child never becomes ready", async () => {
     const binary = join(root, "fake-jev");
     await writeFile(binary, "#!/bin/sh\nexit 0\n", { mode: 0o755 });
     const install: JevInstall = {

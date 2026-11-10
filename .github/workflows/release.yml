@@ -34,6 +34,10 @@ jobs:
 
       - run: bun test test/unit
 
+      # The tarball ships dist/, so build it and check it before packing.
+      - run: npm run build
+      - run: node scripts/smoke-dist.mjs
+
       # The tag must match package.json, so a stray tag cannot publish a
       # different version than the one that was tested.
       - name: Check the tag matches package.json
@@ -80,6 +84,10 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # Build first: the smoke test exercises the artifact that ships, not the
+      # TypeScript sources. This also proves dist/ runs under plain node.
+      - run: npm run build
+
       # Downloads the real release, verifies every checksum, extracts it, and
       # probes the binary. About 650 MB per job, so it runs only on a tag.
-      - run: bun run src/cli.ts setup
+      - run: node dist/cli.js setup

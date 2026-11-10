@@ -339,8 +339,8 @@ including the stakes bump.
 ```sh
 bun install
 bun run typecheck
-bun test test/unit          # runs with --conditions=browser, see below
-bun test test/integration   # needs a jevos server on port 8017
+bun run test                # unit tests, with --conditions=browser
+bun test --conditions=browser test/integration   # needs jevos on 8017
 bun run build               # writes the Node-compatible dist/
 node dist/cli.js setup      # reuse or install the local model
 node dist/cli.js status
@@ -356,7 +356,8 @@ validates it.
 
 The test scripts pass `--conditions=browser` because the footer-label test
 renders through the real Solid renderer. Under the node condition,
-`solid-js` resolves to its server build, where signals never update.
+`solid-js` resolves to its server build, where signals never update. When
+you run `bun test` yourself, pass the flag the same way.
 
 ## License
 

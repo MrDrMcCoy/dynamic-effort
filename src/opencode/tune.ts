@@ -45,7 +45,9 @@ export function isTunePrompt(text: string): boolean {
 
 /** Text handed to the model after the command has already run. */
 export function tuneReplacement(file: string | null): string {
-  const where = file ? `The proposal is at ${file}.` : "No proposal was written.";
+  const where = file
+    ? `The proposal is at ${file}.`
+    : "No proposal was written.";
   return (
     `The /${TUNE_COMMAND} command already ran; its result is shown in ` +
     `this session. ${where} Reply with one short sentence and do not ` +

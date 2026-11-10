@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { DEFAULT_CONFIG } from "../../src/core/config.ts";
 import { NULL_LOGGER } from "../../src/core/log.ts";
 import {
@@ -369,7 +369,7 @@ describe("the tuning command", () => {
     const file = await executeTune(fake, "ses_1");
 
     expect(file).not.toBeNull();
-    expect(readdirSync(fake.directory)).toContain(file!.split("/").pop()!);
+    expect(readdirSync(fake.directory)).toContain(basename(file!));
   });
 
   test("returns null when the answer is malformed", async () => {

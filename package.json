@@ -8,20 +8,39 @@
     "url": "git+https://github.com/MrDrMcCoy/dynamic-effort.git"
   },
   "type": "module",
-  "main": "./src/opencode/index.ts",
+  "main": "./dist/opencode/index.js",
+  "types": "./dist/opencode/index.d.ts",
   "bin": {
-    "dynamic-effort": "./src/cli.ts"
+    "dynamic-effort": "./dist/cli.js"
   },
   "exports": {
-    ".": "./src/opencode/index.ts",
-    "./core": "./src/core/index.ts",
-    "./rpc": "./src/opencode/rpc.ts",
-    "./tui": "./src/opencode/tui.ts",
-    "./acp": "./src/acp/index.ts"
+    ".": {
+      "types": "./dist/opencode/index.d.ts",
+      "default": "./dist/opencode/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./rpc": {
+      "types": "./dist/opencode/rpc.d.ts",
+      "default": "./dist/opencode/rpc.js"
+    },
+    "./tui": {
+      "types": "./dist/opencode/tui.d.ts",
+      "default": "./dist/opencode/tui.js"
+    },
+    "./acp": {
+      "types": "./dist/acp/index.d.ts",
+      "default": "./dist/acp/index.js"
+    }
   },
   "files": [
-    "src"
+    "dist"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "keywords": [
     "opencode",
     "plugin",
@@ -30,6 +49,10 @@
     "systemone"
   ],
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "smoke:dist": "node scripts/smoke-dist.mjs",
     "typecheck": "tsc --noEmit",
     "test": "bun test test/unit",
     "test:all": "bun test test"
@@ -59,8 +82,5 @@
     "solid-js": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "@agentclientprotocol/sdk": "^2.5.0"
   }
 }

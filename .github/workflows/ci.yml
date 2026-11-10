@@ -28,5 +28,9 @@ jobs:
 
       - run: bun run typecheck
 
+      # Builds dist/ and checks it the way a Node consumer uses it.
+      - run: npm run build
+      - run: node scripts/smoke-dist.mjs
+
       # The integration suite skips itself when no decision server answers.
       - run: bun test test

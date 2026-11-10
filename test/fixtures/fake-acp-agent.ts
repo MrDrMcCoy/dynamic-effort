@@ -30,7 +30,10 @@ function handle(message: {
         method: "session/update",
         params: {
           sessionId: "ses_fake",
-          update: { sessionUpdate: "available_commands_update" },
+          update: {
+            sessionUpdate: "available_commands_update",
+            availableCommands: [],
+          },
         },
       });
       return reply({

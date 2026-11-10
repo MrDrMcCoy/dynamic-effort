@@ -6,9 +6,17 @@
 // instead of spawning another.
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { closeSync, mkdirSync, openSync } from "node:fs";
+import {
+  closeSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeSync,
+} from "node:fs";
 import { createServer } from "node:net";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import type { Logger } from "../log.ts";
 import { NULL_LOGGER } from "../log.ts";
 import { cacheRoot, jevLogPath } from "../paths.ts";
@@ -22,6 +30,8 @@ const IDLE_CHECK_MS = 30_000;
 const DEFAULT_STARTUP_TIMEOUT_MS = 120_000;
 const DEFAULT_PROBE_TIMEOUT_MS = 800;
 const DEFAULT_STOP_GRACE_MS = 5_000;
+/** A claim older than this belongs to a process that died while loading. */
+const CLAIM_STALE_MS = 300_000;
 
 export interface SupervisorOptions {
   /** Resolves the install, downloading on first use. */
@@ -86,17 +96,81 @@ async function freePort(taken: number | null): Promise<number | null> {
   return null;
 }
 
+/** Why a startup wait ended. */
+type StartupResult = "ready" | "exited" | "timeout";
+
+/** A held claim on a port; releasing it lets another process try. */
+interface PortClaim {
+  release(): void;
+}
+
+// Two processes that both see a free port would both spawn a server, and the
+// loser only finds out after loading the model. A claim file makes the second
+// process wait for the first one's server instead of racing it.
+function claimPort(root: string, port: number): PortClaim | null {
+  const path = join(root, `jev-${port}.claim`);
+  try {
+    const fd = openSync(path, "wx", 0o600);
+    try {
+      writeSync(fd, String(process.pid));
+    } finally {
+      closeSync(fd);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") return null;
+    // A claim left by a process that died while loading must not block.
+    if (!claimIsStale(path)) return null;
+    try {
+      unlinkSync(path);
+    } catch {
+      return null;
+    }
+    return claimPort(root, port);
+  }
+  return {
+    release: () => {
+      try {
+        unlinkSync(path);
+      } catch {
+        // Already gone; nothing to release.
+      }
+    },
+  };
+}
+
+/** True when the claim names a dead process or outlives the model load. */
+function claimIsStale(path: string): boolean {
+  try {
+    if (Date.now() - statSync(path).mtimeMs > CLAIM_STALE_MS) return true;
+    const pid = Number(readFileSync(path, "utf8").trim());
+    if (!Number.isInteger(pid) || pid <= 0) return true;
+    try {
+      // Signal 0 checks for the process without touching it.
+      process.kill(pid, 0);
+      return false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === "ESRCH";
+    }
+  } catch {
+    return false;
+  }
+}
+
 async function waitForHealth(
   port: number,
   timeoutMs: number,
   probeTimeoutMs: number,
-): Promise<boolean> {
+  child: ChildProcess | null = null,
+): Promise<StartupResult> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if ((await probeHealth(port, probeTimeoutMs)) !== null) return true;
+    // Check the child before the port: once it has exited it will never bind,
+    // and a healthy port then belongs to somebody else.
+    if (child !== null && child.exitCode !== null) return "exited";
+    if ((await probeHealth(port, probeTimeoutMs)) !== null) return "ready";
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  return false;
+  return "timeout";
 }
 
 export class JevServer {
@@ -197,15 +271,6 @@ export class JevServer {
       return this.attach(requested);
     }
 
-    let install: JevInstall;
-    try {
-      install = await this.options.install();
-    } catch (error) {
-      this.failedAt = Date.now();
-      this.logger.warn("jevos is not installed; leaving model defaults", error);
-      return null;
-    }
-
     // A configured port may belong to another program; scan for a free one.
     const port =
       requested !== null && (await portFree(requested))
@@ -214,6 +279,28 @@ export class JevServer {
     if (port === null) {
       this.failedAt = Date.now();
       this.logger.warn("no free port for the jevos server");
+      return null;
+    }
+
+    // Another process may be loading a server for this port right now. Wait
+    // for it rather than spawn a second model into memory.
+    const claim = claimPort(this.root, port);
+    if (claim === null) {
+      this.logger.debug("another process holds the port claim", { port });
+      const url = await this.waitForRival(port);
+      if (url !== null) return url;
+      this.failedAt = Date.now();
+      this.logger.warn("another process holds the jevos port", { port });
+      return null;
+    }
+
+    let install: JevInstall;
+    try {
+      install = await this.options.install();
+    } catch (error) {
+      claim.release();
+      this.failedAt = Date.now();
+      this.logger.warn("jevos is not installed; leaving model defaults", error);
       return null;
     }
 
@@ -248,6 +335,7 @@ export class JevServer {
       });
     } catch (error) {
       closeSync(log);
+      claim.release();
       this.failedAt = Date.now();
       this.logger.warn("could not start the jevos server", error);
       return null;
@@ -256,12 +344,25 @@ export class JevServer {
     }
     this.child = child;
 
-    const ready = await waitForHealth(
+    const outcome = await waitForHealth(
       port,
       this.options.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS,
       this.options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS,
+      child,
     );
-    if (!ready) {
+    claim.release();
+    if (outcome !== "ready") {
+      // A concurrent start can win the port after our free-port check. The
+      // loser exits at once, so a healthy server here is somebody else's.
+      const probeTimeout =
+        this.options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
+      if ((await probeHealth(port, probeTimeout)) !== null) {
+        this.child = null;
+        this.logger.debug("attaching to the server that won the port", {
+          port,
+        });
+        return this.attach(port);
+      }
       this.failedAt = Date.now();
       this.logger.warn(
         "the jevos server did not answer",
@@ -271,14 +372,47 @@ export class JevServer {
       return null;
     }
 
-    this.logger.info("the jevos server is ready", { port });
-    return this.attach(port);
+    // Health can turn ready because a rival start won the port, not because
+    // our child is serving. attach() settles ownership, so log from that.
+    const url = this.attach(port);
+    if (this.attached) {
+      this.logger.debug("attaching to the server that won the port", { port });
+    } else {
+      this.logger.info("the jevos server is ready", { port });
+    }
+    return url;
+  }
+
+  /** Waits for a server another process is starting on `port`. */
+  private async waitForRival(port: number): Promise<string | null> {
+    const deadline =
+      Date.now() +
+      (this.options.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS);
+    const probeTimeout =
+      this.options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      if ((await probeHealth(port, probeTimeout)) !== null) {
+        this.logger.debug("attaching to the server another process started", {
+          port,
+        });
+        return this.attach(port);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    return null;
   }
 
   private attach(port: number): string {
     this.base = `http://127.0.0.1:${port}`;
-    // Only a server this process started stops with it; an attached one
-    // belongs to whoever started it and must outlive us.
+    // A child that already exited cannot be serving: whatever answers on the
+    // port belongs to another process, and only a server this process started
+    // stops with it.
+    if (
+      this.child !== null &&
+      (this.child.exitCode !== null || this.child.signalCode !== null)
+    ) {
+      this.child = null;
+    }
     this.attached = this.child === null;
     this.lastUse = Date.now();
     if (this.timer === null) {

@@ -23,10 +23,16 @@ jobs:
         with:
           bun-version: latest
 
+      # No registry-url: setup-node would write an .npmrc with an empty
+      # ${NODE_AUTH_TOKEN} placeholder, which stops npm from falling back to
+      # the OIDC exchange. The default registry is npmjs.org anyway.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later; the npm bundled with
+      # node 22 is older than that.
+      - run: npm install --global npm@^11.5.1
 
       - run: bun install --frozen-lockfile
 
@@ -56,9 +62,10 @@ jobs:
 
       - name: Publish
         if: startsWith(github.ref, 'refs/tags/')
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+        # No token: npm exchanges the GitHub OIDC token for a short-lived
+        # publish credential, which requires the trusted publisher entry on
+        # npmjs.com and the id-token: write permission above.
+        run: npm publish --access public
 
   smoke:
     name: download smoke (${{ matrix.target }})

@@ -1,0 +1,30 @@
+name: npm diagnostics
+
+# Temporary: reports which npm account the environment token belongs to and
+# whether it can publish to the scope. Deleted after use.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  whoami:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Report identity
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "token length: ${#NODE_AUTH_TOKEN}"
+          echo "token prefix: ${NODE_AUTH_TOKEN:0:4}"
+          npm whoami || echo "whoami failed with $?"
+          echo "--- orgs ---"
+          npm org ls mrdrmccoy --json || echo "org ls failed with $?"
+          echo "--- scope access ---"
+          npm access list packages @mrdrmccoy || echo "access failed with $?"

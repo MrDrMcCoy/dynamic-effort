@@ -46,6 +46,8 @@ export interface StashedDecision {
   readonly choice?: string;
   readonly confidence?: number;
   readonly highStakes?: number;
+  readonly bumpedForStakes?: boolean;
+  readonly lowConfidence?: boolean;
   readonly keyword?: string;
 }
 
@@ -139,6 +141,8 @@ export class DecisionRouter {
         choice: decision.rawChoice,
         confidence: decision.confidence,
         highStakes: decision.highStakes,
+        bumpedForStakes: decision.bumpedForStakes,
+        lowConfidence: decision.lowConfidence,
       });
     } catch (error) {
       this.logger.debug("prompt decision skipped", error);
@@ -188,6 +192,8 @@ export class DecisionRouter {
         choice: decision.rawChoice,
         confidence: decision.confidence,
         highStakes: decision.highStakes,
+        bumpedForStakes: decision.bumpedForStakes,
+        lowConfidence: decision.lowConfidence,
       });
     } catch (error) {
       this.logger.debug("context decision skipped", error);

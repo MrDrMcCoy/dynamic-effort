@@ -38,6 +38,7 @@ export class StreamTransport implements Transport {
   private readonly reader: LineReader;
   private handler: ((message: RpcMessage) => void) | null = null;
   private closed = false;
+  private writeClosed = false;
   private closeHandler: ((error?: Error) => void) | null = null;
 
   constructor(
@@ -69,7 +70,8 @@ export class StreamTransport implements Transport {
   }
 
   write(message: RpcMessage): void {
-    if (this.closed) return;
+    // Input can end before a reply is ready; keep writing until close().
+    if (this.writeClosed) return;
     this.writeLine(encodeMessage(message));
   }
 
@@ -82,7 +84,8 @@ export class StreamTransport implements Transport {
   }
 
   close(): void {
-    if (this.closed) return;
+    if (this.writeClosed) return;
+    this.writeClosed = true;
     this.closed = true;
     this.closeStream();
   }

@@ -66,8 +66,8 @@
     "prepack": "npm run build",
     "smoke:dist": "node scripts/smoke-dist.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "bun test test/unit",
-    "test:all": "bun test test"
+    "test": "bun test --conditions=browser test/unit",
+    "test:all": "bun test --conditions=browser test"
   },
   "devDependencies": {
     "@opencode/plugin": "^2.2.5",

@@ -6,7 +6,7 @@ import { jsx } from "@opentui/solid/jsx-runtime";
 import { createSignal } from "solid-js";
 import { DynamicEffort } from "./rpc.ts";
 
-function formatDecision(data: unknown): string {
+export function formatDecision(data: unknown): string {
   if (!data || typeof data !== "object") return "";
   const record = data as {
     effort?: unknown;
@@ -36,9 +36,13 @@ export default Plugin.define({
       const requested = new Set<string>();
 
       const store = (sessionID: string, data: unknown) => {
+        // A slow getDecision reply can land after the event that already knows
+        // the answer, so an empty label never replaces a known one.
+        const label = formatDecision(data);
+        if (!label) return;
         setLabels((previous) => ({
           ...previous,
-          [sessionID]: formatDecision(data),
+          [sessionID]: label,
         }));
       };
 

@@ -339,14 +339,19 @@ including the stakes bump.
 ```sh
 bun install
 bun run typecheck
-bun test test/unit
+bun test test/unit          # runs with --conditions=browser, see below
 bun test test/integration   # needs a jevos server on port 8017
 bun run build               # writes the Node-compatible dist/
+node dist/cli.js setup      # reuse or install the local model
 node dist/cli.js status
 ```
 
 The integration suite skips itself when no server answers. `dist/` is
 compiled by `tsc` and is not committed; `npm pack` builds it first.
+
+The test scripts pass `--conditions=browser` because the footer-label test
+renders through the real Solid renderer. Under the node condition,
+`solid-js` resolves to its server build, where signals never update.
 
 ## License
 

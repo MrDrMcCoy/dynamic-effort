@@ -75,6 +75,13 @@ export class StreamTransport implements Transport {
     this.writeLine(encodeMessage(message));
   }
 
+  /** Closes the transport from the outside, for a pipe that failed. */
+  fail(error?: Error): void {
+    if (this.closed) return;
+    this.writeClosed = true;
+    this.finish(error);
+  }
+
   onMessage(handler: (message: RpcMessage) => void): void {
     this.handler = handler;
   }
@@ -124,7 +131,7 @@ export function spawnTransport(options: SpawnOptions): Transport {
   if (!stdin || !stdout) {
     throw new Error(`could not start ${options.command}`);
   }
-  return new StreamTransport(
+  const transport = new StreamTransport(
     (line) => {
       stdin.write(line);
     },
@@ -134,4 +141,8 @@ export function spawnTransport(options: SpawnOptions): Transport {
       child.kill("SIGTERM");
     },
   );
+  // A command that is missing or not executable emits "error" and never
+  // writes anything, so without this the proxy would wait forever.
+  child.on("error", (error) => transport.fail(error));
+  return transport;
 }

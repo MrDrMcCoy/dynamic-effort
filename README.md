@@ -349,6 +349,11 @@ node dist/cli.js status
 The integration suite skips itself when no server answers. `dist/` is
 compiled by `tsc` and is not committed; `npm pack` builds it first.
 
+`test/integration/acp-client.test.ts` drives the proxy with the official
+`@agentclientprotocol/sdk` client instead of hand-written JSON-RPC, so
+every message shape the proxy emits is validated the way an editor
+validates it.
+
 The test scripts pass `--conditions=browser` because the footer-label test
 renders through the real Solid renderer. Under the node condition,
 `solid-js` resolves to its server build, where signals never update.

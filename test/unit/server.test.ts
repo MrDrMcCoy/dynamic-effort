@@ -137,6 +137,22 @@ describe("JevServer", () => {
   });
 
   const posixOnly = process.platform === "win32" ? test.skip : test;
+  posixOnly("starts when the cache root does not exist yet", async () => {
+    // A fresh XDG_CACHE_HOME has no root directory, so the claim file cannot
+    // be created. That must not look like a rival process holding the port.
+    const missing = join(root, "not-created-yet");
+    let attempted = false;
+    const instance = server({
+      root: missing,
+      port: 0,
+      install: async () => {
+        attempted = true;
+        throw new Error("no install");
+      },
+    });
+    expect(await instance.ensure()).toBeNull();
+    expect(attempted).toBe(true);
+  });
   posixOnly("keeps one server when a claim is held", async () => {
     // A rival process holds the claim and is still loading its model. The
     // second process must wait for that server, not start another.

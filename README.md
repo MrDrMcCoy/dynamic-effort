@@ -83,6 +83,83 @@ Coverage depends on the agent. The proxy speaks ACP version 1 and forwards
 anything it does not understand, so features such as session loading, modes,
 and MCP servers work as if the proxy were not there.
 
+## pi and oh-my-pi
+
+Both hosts load a TypeScript extension with no build step and expose a
+thinking level per prompt, which makes them the best native targets. Load the
+extension with `-e`:
+
+```sh
+pi -e /path/to/dynamic-effort/src/pi/index.ts
+omp -e /path/to/dynamic-effort/src/pi/index.ts
+```
+
+A published install uses the built entry:
+`pi -e node_modules/@mrdrmccoy/dynamic-effort/dist/pi/index.js`.
+
+To load it in every session, add the path to `settings.json`:
+
+```json
+{
+  "extensions": ["/path/to/dynamic-effort/src/pi/index.ts"]
+}
+```
+
+The extension decides on the first prompt of each turn, calls
+`setThinkingLevel`, then reads the level back. Before it sets a level it reads
+the model's own vocabulary — `thinking.efforts` in omp, `thinkingLevelMap` in
+pi — and picks the nearest supported level, with ties going to the stronger
+one. A model that offers only `high` and `max` therefore gets `max` for an
+`xhigh` decision instead of being clamped down to `high`. The footer shows
+`effort xhigh (max)` when the level differs from the decision. A level you
+pick yourself pins the session and later prompts leave it alone; the host
+echoes the extension's own write, which is not treated as a choice.
+`session_shutdown` persists telemetry and stops a server this extension
+started.
+
+## Codex and Claude Code
+
+Both harnesses take the effort level only when the process starts, so the
+adapter decides from the prompt first and then runs the real binary with the
+level in its arguments:
+
+```sh
+dynamic-effort launch codex -- exec "refactor the parser"
+dynamic-effort launch claude -- -p "prove this sort is stable"
+```
+
+The decision comes from the first positional argument, or from stdin when the
+arguments have none. Codex receives `-c model_reasoning_effort=<level>`;
+Claude Code receives `--effort <level>`. The level is mapped onto each
+harness's own vocabulary first, so `minimal` becomes `low` for Claude Code,
+which has no `minimal` level. Codex does not validate the value at startup, so
+the mapping must happen here rather than in the harness.
+
+Neither harness can change effort mid-session through a hook, so a decision
+covers the whole run. A failed decision runs the harness unchanged.
+
+## goose and Hermes
+
+goose exposes an ACP agent server, so the proxy covers it with no new
+integration:
+
+```sh
+dynamic-effort acp -- goose acp
+```
+
+The proxy reads the `thought_level` config option goose publishes and sets it
+before each prompt, exactly as it does for `opencode acp`.
+
+Hermes takes a reasoning level at launch, which the launch adapter handles:
+
+```sh
+dynamic-effort launch hermes -- -z "refactor the parser"
+```
+
+Hermes receives `--reasoning <level>` and accepts `none` through `max`. The
+level is mapped onto that range, so `minimal` stays `minimal` and any decision
+above `max` is capped.
+
 ## Environment variables
 
 The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.

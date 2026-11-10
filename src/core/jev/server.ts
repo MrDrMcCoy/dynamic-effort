@@ -107,9 +107,18 @@ interface PortClaim {
 // Two processes that both see a free port would both spawn a server, and the
 // loser only finds out after loading the model. A claim file makes the second
 // process wait for the first one's server instead of racing it.
-function claimPort(root: string, port: number): PortClaim | null {
+//
+// Returns null only when another live process holds the claim. Any other
+// failure (a missing root, a read-only cache) starts the server unserialised
+// rather than waiting for a rival that will never appear.
+function claimPort(
+  root: string,
+  port: number,
+  logger: Logger,
+): PortClaim | null {
   const path = join(root, `jev-${port}.claim`);
   try {
+    mkdirSync(root, { recursive: true, mode: 0o700 });
     const fd = openSync(path, "wx", 0o600);
     try {
       writeSync(fd, String(process.pid));
@@ -117,15 +126,19 @@ function claimPort(root: string, port: number): PortClaim | null {
       closeSync(fd);
     }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") return null;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "EEXIST") {
+      logger.debug("could not claim the jevos port", error);
+      return { release: () => {} };
+    }
     // A claim left by a process that died while loading must not block.
     if (!claimIsStale(path)) return null;
     try {
       unlinkSync(path);
     } catch {
-      return null;
+      return { release: () => {} };
     }
-    return claimPort(root, port);
+    return claimPort(root, port, logger);
   }
   return {
     release: () => {
@@ -284,7 +297,7 @@ export class JevServer {
 
     // Another process may be loading a server for this port right now. Wait
     // for it rather than spawn a second model into memory.
-    const claim = claimPort(this.root, port);
+    const claim = claimPort(this.root, port, this.logger);
     if (claim === null) {
       this.logger.debug("another process holds the port claim", { port });
       const url = await this.waitForRival(port);

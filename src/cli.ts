@@ -26,16 +26,18 @@ import {
   DEFAULT_AGENT_COMMAND,
   runAcpProxy,
 } from "./acp/index.ts";
+import { ADAPTERS, runLaunch } from "./launch/index.ts";
 
 const FIRST_PORT = 8017;
 
 const USAGE =
-  "usage: dynamic-effort <setup|status|serve|acp|telemetry>\n" +
+  "usage: dynamic-effort <setup|status|serve|acp|launch|telemetry>\n" +
   "       [-- command ...]\n" +
   "  setup      download and verify jevos if it is missing\n" +
   "  status     report the install and any running server\n" +
   "  serve      run the server until interrupted\n" +
   "  acp        proxy an ACP agent (default: opencode acp)\n" +
+  "  launch     run codex or claude with the decided effort\n" +
   "  telemetry  summarise the decisions recorded on disk";
 
 function usage(): never {
@@ -178,6 +180,21 @@ switch (command) {
       agent: agentFromArgs(process.argv.slice(3)),
       config: { debug: true },
     });
+    break;
+  }
+
+  case "launch": {
+    const rest = process.argv.slice(3);
+    const split = rest.indexOf("--");
+    const adapter = rest[0] ? ADAPTERS[rest[0]] : undefined;
+    if (!adapter) {
+      console.error(
+        `launch needs a harness: ${Object.keys(ADAPTERS).join(", ")}`,
+      );
+      process.exit(2);
+    }
+    const args = split >= 0 ? rest.slice(split + 1) : rest.slice(1);
+    process.exitCode = await runLaunch({ adapter, args });
     break;
   }
 

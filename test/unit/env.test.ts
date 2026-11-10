@@ -17,6 +17,10 @@ describe("envConfig", () => {
       DYNAMIC_EFFORT_THREADS: "4",
       DYNAMIC_EFFORT_JEV_PATH: "/opt/jev",
       DYNAMIC_EFFORT_DEBUG: "1",
+      DYNAMIC_EFFORT_TELEMETRY: "0",
+      DYNAMIC_EFFORT_TELEMETRY_PERSIST: "1",
+      DYNAMIC_EFFORT_TELEMETRY_CAPACITY: "25",
+      DYNAMIC_EFFORT_TELEMETRY_PROMPT_CHARS: "0",
     });
 
     expect(config.endpoint).toBe("http://127.0.0.1:9000/v1/systemone");
@@ -32,6 +36,10 @@ describe("envConfig", () => {
     expect(config.jevThreads).toBe(4);
     expect(config.jevPath).toBe("/opt/jev");
     expect(config.debug).toBe(true);
+    expect(config.telemetry).toBe(false);
+    expect(config.telemetryPersist).toBe(true);
+    expect(config.telemetryCapacity).toBe(25);
+    expect(config.telemetryPromptChars).toBe(0);
   });
 
   test("ignores blank and malformed values", () => {

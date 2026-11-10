@@ -11,9 +11,9 @@ import {
   buildCatalog,
   catalogKey,
   createRuntime,
-  readConfig,
   type CatalogEntry,
   type CatalogModel,
+  type EffortConfig,
   type EffortLevel,
   type StashedDecision,
 } from "../core/index.ts";
@@ -48,8 +48,13 @@ export default {
   ...Plugin.define({
     id: PLUGIN_ID,
     async setup(ctx) {
-      const runtime = createRuntime({ config: readConfig(ctx.options) });
-      const { config, logger, router, requestOptions } = runtime;
+      // Pass the raw options, not readConfig() output: a full config object
+      // would shadow every DYNAMIC_EFFORT_* variable. createRuntime merges
+      // and validates the layers itself.
+      const runtime = createRuntime({
+        config: (ctx.options ?? {}) as Partial<EffortConfig>,
+      });
+      const { config, logger, router, requestOptions, telemetry } = runtime;
       logger.debug("setup", {
         endpoint: config.endpoint ?? "local",
         defaultEffort: config.defaultEffort,
@@ -71,6 +76,9 @@ export default {
       await refreshCatalog();
       let refreshedAt = Date.now();
       const records = new Map<string, DecisionRecord>();
+      /** The text of the newest prompt per session, for telemetry only. */
+      const prompts = new Map<string, string>();
+      const usageAbort = new AbortController();
       const registration = await ctx.rpc.register(DynamicEffort, {
         getDecision: async (input) => {
           const sessionID = (input as { sessionID?: unknown }).sessionID;
@@ -109,6 +117,11 @@ export default {
       await ctx.session.hook("prompt", async (event) => {
         const text = event.prompt?.text ?? "";
         if (!text.trim()) return;
+        prompts.set(event.sessionID, text);
+        if (prompts.size > 500) {
+          const oldest = prompts.keys().next();
+          if (!oldest.done) prompts.delete(oldest.value);
+        }
 
         const decision = await router.onPrompt({
           sessionID: event.sessionID,
@@ -163,6 +176,23 @@ export default {
           keyword: decision.keyword,
           source,
         });
+        if (config.telemetry) {
+          telemetry.append({
+            session: event.sessionID,
+            agent: event.agent,
+            model: display,
+            effort: decision.effort,
+            variant: applied.variantId,
+            applied: applied.applied,
+            choice: decision.choice,
+            confidence: decision.confidence,
+            highStakes: decision.highStakes,
+            keyword: decision.keyword,
+            source,
+            promptHash: decision.promptHash,
+            prompt: prompts.get(event.sessionID),
+          });
+        }
         logger.debug("applied", {
           session: event.sessionID,
           model: display,
@@ -195,7 +225,43 @@ export default {
         await applyTo(event, decision, "context");
       });
 
+      // Token counts arrive on their own event, after the request finishes.
+      if (config.telemetry) {
+        void (async () => {
+          try {
+            const events = ctx.event.subscribe({
+              types: ["session.usage.updated"],
+              signal: usageAbort.signal,
+            });
+            for await (const event of events) {
+              const data = (event as { data?: unknown }).data as
+                | {
+                    sessionID?: unknown;
+                    tokens?: {
+                      input?: number;
+                      output?: number;
+                      reasoning?: number;
+                      cache?: { read?: number; write?: number };
+                    };
+                  }
+                | undefined;
+              if (typeof data?.sessionID !== "string" || !data.tokens) continue;
+              telemetry.stampUsage(data.sessionID, {
+                input: data.tokens.input ?? 0,
+                output: data.tokens.output ?? 0,
+                reasoning: data.tokens.reasoning ?? 0,
+                cacheRead: data.tokens.cache?.read ?? 0,
+                cacheWrite: data.tokens.cache?.write ?? 0,
+              });
+            }
+          } catch (error) {
+            logger.debug("usage subscription ended", error);
+          }
+        })();
+      }
+
       return () => {
+        usageAbort.abort();
         void registration.dispose();
         void runtime.stop();
       };

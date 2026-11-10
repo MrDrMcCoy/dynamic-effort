@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createRuntime } from "../../src/core/runtime.ts";
 
 describe("createRuntime", () => {
@@ -34,5 +37,72 @@ describe("createRuntime", () => {
     expect(options.endpoint).toBe("http://127.0.0.1:9999/");
     expect(options.timeoutMs).toBe(1500);
     await runtime.stop();
+  });
+
+  test("keeps a telemetry buffer sized from the config", () => {
+    const runtime = createRuntime({
+      env: { DYNAMIC_EFFORT_ENDPOINT: "http://127.0.0.1:9999/" },
+      config: { telemetryCapacity: 3 },
+      warm: false,
+      logger: { debug() {}, info() {}, warn() {}, error() {} },
+    });
+
+    for (let index = 0; index < 5; index += 1) {
+      runtime.telemetry.append({
+        session: `ses_${index}`,
+        effort: "low",
+        applied: true,
+        source: "prompt",
+      });
+    }
+
+    expect(runtime.telemetry.size).toBe(3);
+    expect(runtime.telemetryPath.endsWith("telemetry.jsonl")).toBe(true);
+  });
+
+  test("writes telemetry on stop only when persistence is enabled", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dynamic-effort-runtime-"));
+    const runtime = createRuntime({
+      env: {
+        DYNAMIC_EFFORT_ENDPOINT: "http://127.0.0.1:9999/",
+        XDG_CACHE_HOME: root,
+      },
+      config: { telemetryPersist: true },
+      warm: false,
+      logger: { debug() {}, info() {}, warn() {}, error() {} },
+    });
+    runtime.telemetry.append({
+      session: "ses_1",
+      effort: "low",
+      applied: true,
+      source: "prompt",
+    });
+
+    await runtime.stop();
+
+    expect(runtime.telemetryPath.startsWith(root)).toBe(true);
+    expect(readFileSync(runtime.telemetryPath, "utf8")).toContain('"ses_1"');
+  });
+
+  test("leaves the disk alone when persistence is off", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dynamic-effort-runtime-"));
+    const runtime = createRuntime({
+      env: {
+        DYNAMIC_EFFORT_ENDPOINT: "http://127.0.0.1:9999/",
+        XDG_CACHE_HOME: root,
+      },
+      warm: false,
+      logger: { debug() {}, info() {}, warn() {}, error() {} },
+    });
+    runtime.telemetry.append({
+      session: "ses_1",
+      effort: "low",
+      applied: true,
+      source: "prompt",
+    });
+
+    await runtime.stop();
+
+    expect(existsSync(runtime.telemetryPath)).toBe(false);
   });
 });

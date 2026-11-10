@@ -103,6 +103,10 @@ They sit below explicit options and above the defaults.
 | `DYNAMIC_EFFORT_THREADS` | Worker threads for the model. |
 | `DYNAMIC_EFFORT_JEV_PATH` | A jevos install to use as-is. |
 | `DYNAMIC_EFFORT_DEBUG` | `1` writes decision details to the log. |
+| `DYNAMIC_EFFORT_TELEMETRY` | `0` turns the local ring buffer off. |
+| `DYNAMIC_EFFORT_TELEMETRY_PERSIST` | `1` writes the buffer on shutdown. |
+| `DYNAMIC_EFFORT_TELEMETRY_CAPACITY` | Entries kept in memory. |
+| `DYNAMIC_EFFORT_TELEMETRY_PROMPT_CHARS` | Prompt characters kept per entry. |
 
 ## Options
 
@@ -128,7 +132,34 @@ They sit below explicit options and above the defaults.
 | `jevPath` | none | A jevos install to use as-is. |
 | `jevReuseDirs` | none | Directories to search for an existing install. |
 | `questions` | built in | Replace the question wording and criteria. |
+| `telemetry` | `true` | Keep a local ring buffer of decisions. |
+| `telemetryPersist` | `false` | Write the buffer on shutdown. |
+| `telemetryCapacity` | `500` | Entries kept in memory. |
+| `telemetryPromptChars` | `500` | Prompt characters kept per entry; `0` keeps none. |
 | `debug` | `false` | Write decision details to the log. |
+
+## Telemetry
+
+The plugin records each decision locally: the effort, the variant applied,
+the model, the confidence and stakes scores, and the token counts when the
+harness reports them. The buffer is a fixed-size ring in memory, so a long
+session does not grow without limit.
+
+Nothing is written to disk unless `telemetryPersist` is on. Then the buffer
+is appended to `telemetry.jsonl` under the cache root on shutdown, one JSON
+object per line, rotated once past 5 MB. The data never leaves the machine
+and no request sends it anywhere.
+
+`dynamic-effort telemetry` prints a summary over that file:
+
+```
+entries: 42 across 7 sessions
+applied: 41 of 42
+reasoning tokens: 12043
+output tokens: 3021
+efforts: low=20 minimal=12 high=6 xhigh=4
+sources: prompt=40 context=2
+```
 
 ## Effort mapping
 

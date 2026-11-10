@@ -74,6 +74,18 @@ export {
 } from "./router.ts";
 
 export {
+  DEFAULT_TELEMETRY_CAPACITY,
+  DEFAULT_TELEMETRY_MAX_BYTES,
+  DEFAULT_TELEMETRY_PROMPT_CHARS,
+  readTelemetry,
+  TelemetryBuffer,
+  type TelemetryEntry,
+  type TelemetryInput,
+  type TelemetryOptions,
+  type UsageSnapshot,
+} from "./telemetry.ts";
+
+export {
   JevInstaller,
   hashFile,
   type InstallOptions,

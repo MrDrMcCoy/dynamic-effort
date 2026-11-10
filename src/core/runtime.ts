@@ -21,6 +21,7 @@ import { JevInstaller } from "./jev/manager.ts";
 import { JevServer } from "./jev/server.ts";
 import { releaseTarget } from "./jev/release.ts";
 import { DecisionRouter } from "./router.ts";
+import { TelemetryBuffer } from "./telemetry.ts";
 import type { DecisionRequestOptions } from "./decision.ts";
 
 export interface RuntimeOptions {
@@ -38,6 +39,10 @@ export interface Runtime {
   readonly logger: Logger;
   readonly root: string;
   readonly router: DecisionRouter;
+  /** Recent decisions, for the tuner and for local inspection. */
+  readonly telemetry: TelemetryBuffer;
+  /** Where the buffer is written when persistence is enabled. */
+  readonly telemetryPath: string;
   /** Settings for one decision; safe to call before the server is ready. */
   requestOptions(): Promise<DecisionRequestOptions>;
   /** True when the proxy could not prepare a decision path at all. */
@@ -59,7 +64,7 @@ export function createRuntime(options: RuntimeOptions = {}): Runtime {
     ...envConfig(options.env),
     ...options.config,
   });
-  const root = cacheRoot();
+  const root = cacheRoot(options.env);
   const logger =
     options.logger ??
     createLogger({
@@ -74,7 +79,10 @@ export function createRuntime(options: RuntimeOptions = {}): Runtime {
         logger,
         target,
         path: config.jevPath ?? null,
-        reuseDirs: [...config.jevReuseDirs, ...defaultReuseDirs()],
+        reuseDirs: [
+          ...config.jevReuseDirs,
+          ...defaultReuseDirs(options.env),
+        ],
       })
     : null;
   const server =
@@ -124,14 +132,32 @@ export function createRuntime(options: RuntimeOptions = {}): Runtime {
     logger,
   });
 
+  const telemetry = new TelemetryBuffer({
+    capacity: config.telemetryCapacity,
+    promptChars: config.telemetryPromptChars,
+    logger,
+  });
+  const telemetryPath = join(root, "telemetry.jsonl");
+
   return {
     config,
     logger,
     root,
     router,
+    telemetry,
+    telemetryPath,
     requestOptions,
     available: Boolean(config.endpoint) || server !== null,
     async stop() {
+      if (config.telemetryPersist) {
+        const written = telemetry.persist(telemetryPath);
+        if (written > 0) {
+          logger.debug("telemetry written", {
+            entries: written,
+            file: telemetryPath,
+          });
+        }
+      }
       await server?.stop();
     },
   };

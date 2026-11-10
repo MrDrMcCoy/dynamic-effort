@@ -47,6 +47,32 @@ export async function runAcpProxy(options: RunOptions): Promise<void> {
         confidence: decision.confidence,
       });
     },
+    onApplied: (sessionId, decision, value, prompt) => {
+      if (!runtime.config.telemetry) return;
+      runtime.telemetry.append({
+        session: sessionId,
+        effort: decision.effort,
+        variant: value ?? undefined,
+        applied: value !== null,
+        choice: decision.choice,
+        confidence: decision.confidence,
+        highStakes: decision.highStakes,
+        keyword: decision.keyword,
+        source: "prompt",
+        promptHash: decision.promptHash,
+        prompt,
+      });
+    },
+    onUsage: (sessionId, usage) => {
+      if (!runtime.config.telemetry) return;
+      runtime.telemetry.stampUsage(sessionId, {
+        input: usage.input,
+        output: usage.output,
+        reasoning: usage.reasoning,
+        cacheRead: 0,
+        cacheWrite: 0,
+      });
+    },
   });
   logger.debug("proxy started", {
     command: options.agent.command,

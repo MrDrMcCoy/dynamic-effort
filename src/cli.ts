@@ -6,6 +6,7 @@
 //   dynamic-effort status           report the install and any running server
 //   dynamic-effort serve            run the server until interrupted
 //   dynamic-effort acp [cmd ...]    proxy an ACP agent on stdin and stdout
+//   dynamic-effort telemetry        summarise the recorded decisions
 
 import { join } from "node:path";
 import {
@@ -16,7 +17,9 @@ import {
   JevInstaller,
   JevServer,
   probeHealth,
+  readTelemetry,
   releaseTarget,
+  type TelemetryEntry,
 } from "./core/index.ts";
 import {
   DEFAULT_AGENT_ARGS,
@@ -27,11 +30,13 @@ import {
 const FIRST_PORT = 8017;
 
 const USAGE =
-  "usage: dynamic-effort <setup|status|serve|acp> [-- command ...]\n" +
-  "  setup   download and verify jevos if it is missing\n" +
-  "  status  report the install and any running server\n" +
-  "  serve   run the server until interrupted\n" +
-  "  acp     proxy an ACP agent (default: opencode acp)";
+  "usage: dynamic-effort <setup|status|serve|acp|telemetry>\n" +
+  "       [-- command ...]\n" +
+  "  setup      download and verify jevos if it is missing\n" +
+  "  status     report the install and any running server\n" +
+  "  serve      run the server until interrupted\n" +
+  "  acp        proxy an ACP agent (default: opencode acp)\n" +
+  "  telemetry  summarise the decisions recorded on disk";
 
 function usage(): never {
   console.error(USAGE);
@@ -67,6 +72,52 @@ function agentFromArgs(rest: readonly string[]) {
     return { command: DEFAULT_AGENT_COMMAND, args: DEFAULT_AGENT_ARGS };
   }
   return { command, args };
+}
+
+/** Counts entries per key, largest first. */
+function tally(values: readonly string[]): Array<[string, number]> {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((left, right) => right[1] - left[1]);
+}
+
+/** Prints a short report over the persisted ring buffer. */
+function printTelemetry(entries: readonly TelemetryEntry[]): void {
+  if (entries.length === 0) {
+    console.log("no telemetry recorded; enable telemetryPersist to keep it");
+    return;
+  }
+
+  const sessions = new Set(entries.map((entry) => entry.session));
+  const applied = entries.filter((entry) => entry.applied).length;
+  const withUsage = entries.filter((entry) => entry.usage);
+  const reasoning = withUsage.reduce(
+    (total, entry) => total + (entry.usage?.reasoning ?? 0),
+    0,
+  );
+  const output = withUsage.reduce(
+    (total, entry) => total + (entry.usage?.output ?? 0),
+    0,
+  );
+
+  console.log(`entries: ${entries.length} across ${sessions.size} sessions`);
+  console.log(`applied: ${applied} of ${entries.length}`);
+  console.log(`reasoning tokens: ${reasoning}`);
+  console.log(`output tokens: ${output}`);
+  console.log(
+    `efforts: ${tally(entries.map((entry) => entry.effort))
+      .map(([effort, count]) => `${effort}=${count}`)
+      .join(" ")}`,
+  );
+  console.log(
+    `sources: ${tally(entries.map((entry) => entry.source))
+      .map(([source, count]) => `${source}=${count}`)
+      .join(" ")}`,
+  );
+  const last = entries[entries.length - 1];
+  if (last) console.log(`last: ${last.at} ${last.effort} (${last.session})`);
 }
 
 const command = process.argv[2];
@@ -127,6 +178,11 @@ switch (command) {
       agent: agentFromArgs(process.argv.slice(3)),
       config: { debug: true },
     });
+    break;
+  }
+
+  case "telemetry": {
+    printTelemetry(readTelemetry(join(root, "telemetry.jsonl")));
     break;
   }
 

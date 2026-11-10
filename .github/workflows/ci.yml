@@ -33,4 +33,4 @@ jobs:
       - run: node scripts/smoke-dist.mjs
 
       # The integration suite skips itself when no decision server answers.
-      - run: bun test test
+      - run: bun test --conditions=browser test

@@ -1,0 +1,60 @@
+{"text":"hi","expected":"minimal","stakes":false}
+{"text":"say hi in one word","expected":"minimal","stakes":false}
+{"text":"what does the ls -l output mean","expected":"minimal","stakes":false}
+{"text":"rename this variable to userId","expected":"minimal","stakes":false}
+{"text":"what is the capital of France","expected":"minimal","stakes":false}
+{"text":"convert this date string to ISO format","expected":"minimal","stakes":false}
+{"text":"add a newline at the end of the file","expected":"minimal","stakes":false}
+{"text":"what port does the dev server use","expected":"minimal","stakes":false}
+{"text":"format this JSON so it is readable","expected":"minimal","stakes":false}
+{"text":"what is 17 times 3","expected":"minimal","stakes":false}
+{"text":"explain what this function does","expected":"low","stakes":false}
+{"text":"add a docstring to this method","expected":"low","stakes":false}
+{"text":"fix the typo in the error message","expected":"low","stakes":false}
+{"text":"write a test for this helper","expected":"low","stakes":false}
+{"text":"what does this stack trace mean","expected":"low","stakes":false}
+{"text":"add a flag to skip the cache","expected":"low","stakes":false}
+{"text":"change the timeout from 5 to 10 seconds","expected":"low","stakes":false}
+{"text":"summarize what changed in this diff","expected":"low","stakes":false}
+{"text":"make this error message clearer","expected":"low","stakes":false}
+{"text":"sort these imports alphabetically","expected":"low","stakes":false}
+{"text":"add pagination to this list endpoint","expected":"medium","stakes":false}
+{"text":"why is this test flaky","expected":"medium","stakes":false}
+{"text":"refactor this module into two files","expected":"medium","stakes":false}
+{"text":"add retry logic to the HTTP client","expected":"medium","stakes":false}
+{"text":"this query is slow on large tables","expected":"medium","stakes":false}
+{"text":"make the CLI read config from a file","expected":"medium","stakes":false}
+{"text":"write a migration to add a nullable column","expected":"medium","stakes":false}
+{"text":"replace this callback with promises","expected":"medium","stakes":false}
+{"text":"add caching for the model catalog","expected":"medium","stakes":false}
+{"text":"why does the build fail only on Windows","expected":"medium","stakes":false}
+{"text":"refactor the plugin loading to support removal entries","expected":"high","stakes":false}
+{"text":"the ACP proxy drops responses when the client closes stdin","expected":"high","stakes":false}
+{"text":"design a serialization scheme for concurrent server starts","expected":"high","stakes":false}
+{"text":"the tool loop applies the same effort to every model call","expected":"high","stakes":false}
+{"text":"make the installer resumable after a partial download","expected":"high","stakes":false}
+{"text":"port this plugin to a second harness with a different API shape","expected":"high","stakes":false}
+{"text":"find the race in the double-spawn path","expected":"high","stakes":false}
+{"text":"map abstract effort levels onto each model's real variants","expected":"high","stakes":false}
+{"text":"design the telemetry format so it can be tuned from later","expected":"high","stakes":false}
+{"text":"make this work on Windows, macOS, and Linux without shell scripts","expected":"high","stakes":false}
+{"text":"design the auth model for a multi-tenant gateway","expected":"xhigh","stakes":true}
+{"text":"audit this payment flow for race conditions and double charges","expected":"xhigh","stakes":true}
+{"text":"prove that this distributed lock cannot deadlock","expected":"xhigh","stakes":false}
+{"text":"design a zero-downtime migration for a 2 TB table","expected":"xhigh","stakes":true}
+{"text":"find the vulnerability in this JWT validation","expected":"xhigh","stakes":true}
+{"text":"reason about the consistency guarantees of this cache","expected":"xhigh","stakes":false}
+{"text":"design the retry and idempotency strategy for billing","expected":"xhigh","stakes":true}
+{"text":"prove this consensus implementation is safe under partitions","expected":"xhigh","stakes":false}
+{"text":"review this cryptography code for side channels","expected":"xhigh","stakes":true}
+{"text":"plan the rollback strategy for a schema change in production","expected":"xhigh","stakes":true}
+{"text":"delete the users table and recreate it","expected":"medium","stakes":true}
+{"text":"force push this branch to main","expected":"low","stakes":true}
+{"text":"rotate the API keys in production","expected":"medium","stakes":true}
+{"text":"run the migration against the production database","expected":"medium","stakes":true}
+{"text":"drop the index on the orders table","expected":"low","stakes":true}
+{"text":"deploy this to production now","expected":"low","stakes":true}
+{"text":"update the CI secret for the npm token","expected":"medium","stakes":true}
+{"text":"revert the last release","expected":"medium","stakes":true}
+{"text":"change the password hashing rounds in prod config","expected":"high","stakes":true}
+{"text":"delete the staging bucket contents","expected":"low","stakes":true}

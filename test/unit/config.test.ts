@@ -74,7 +74,7 @@ describe("readConfig", () => {
     });
     expect(config.defaultEffort).toBe("medium");
     expect(config.maxEffort).toBe("xhigh");
-    expect(config.minConfidence).toBe(0.35);
+    expect(config.minConfidence).toBe(0.1);
     expect(config.timeoutMs).toBe(8000);
     expect(config.jevPort).toBe(8017);
     expect(config.jevThreads).toBe(2);

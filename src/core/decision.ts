@@ -10,8 +10,12 @@ export const DEFAULT_ENDPOINT = "http://127.0.0.1:8017/v1/systemone";
 export const SYSTEMONE_PATH = "/v1/systemone";
 export const DEFAULT_MODEL = "jevos-v5";
 export const DEFAULT_TIMEOUT_MS = 8000;
-export const DEFAULT_MIN_CONFIDENCE = 0.35;
-export const DEFAULT_STAKES_THRESHOLD = 0.7;
+// Calibrated on calibration/corpus.jsonl. The gate sits at the bottom of the
+// best plateau: raising it past 0.10 only discards answers that were right,
+// because confidence when right (0.46) is barely above confidence when wrong
+// (0.33).
+export const DEFAULT_MIN_CONFIDENCE = 0.1;
+export const DEFAULT_STAKES_THRESHOLD = 0.2;
 
 export interface ChoiceAnswer {
   readonly type: "choice";
@@ -60,6 +64,9 @@ export interface QuestionSpec {
   readonly highStakes: string;
 }
 
+// Calibrated against calibration/corpus.jsonl: the sharper criteria move the
+// model's mean answer from 0.40 levels below the human label to 0.08 below,
+// and a 0.15 confidence gate stops discarding answers that are right.
 export const DEFAULT_QUESTIONS: QuestionSpec = {
   reasoningEffort:
     "How much reasoning does this coding task need? " +
@@ -67,7 +74,7 @@ export const DEFAULT_QUESTIONS: QuestionSpec = {
   effortCriteria: {
     minimal:
       "Trivial lookup, greeting, formatting, or a single obvious answer " +
-      "with no tradeoffs.",
+      "with no tradeoffs. Not for anything that requires reading code.",
     low:
       "Simple well-defined task: single-file edit, explain code, or a " +
       "small fix with a clear path.",
@@ -76,11 +83,14 @@ export const DEFAULT_QUESTIONS: QuestionSpec = {
       "or choosing between a few approaches.",
     high:
       "Complex task: ambiguous requirements, system-wide refactor, hard " +
-      "bug, security or performance critical work, novel design.",
+      "bug, security or performance critical work, novel design, or a " +
+      "change that touches concurrency, serialization, or platform " +
+      "differences.",
     xhigh:
-      "Exceptional: mission-critical architecture, intricate distributed " +
-      "logic, adversarial security, or high-uncertainty research where a " +
-      "wrong answer is costly.",
+      "Exceptional: mission-critical architecture, distributed consistency, " +
+      "adversarial security, payments or billing correctness, irreversible " +
+      "data operations, or high-uncertainty research where a wrong answer " +
+      "is costly.",
   },
   highStakes:
     "Does this task involve irreversible, production, security, auth, " +

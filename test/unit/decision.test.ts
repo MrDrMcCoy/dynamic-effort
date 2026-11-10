@@ -49,7 +49,7 @@ describe("composeDecision", () => {
 
   test("falls back to the default when confidence is low", () => {
     const decision = composeDecision(
-      response({ reasoning_effort: confident("minimal", 0.1) }),
+      response({ reasoning_effort: confident("minimal", 0.05) }),
     );
     expect(decision.effort).toBe("medium");
     expect(decision.lowConfidence).toBe(true);
@@ -82,7 +82,7 @@ describe("composeDecision", () => {
     const decision = composeDecision(
       response({
         reasoning_effort: confident("low"),
-        high_stakes: { type: "noul", noul: 0.69 },
+        high_stakes: { type: "noul", noul: 0.15 },
       }),
     );
     expect(decision.effort).toBe("low");

@@ -33,6 +33,10 @@
     "./acp": {
       "types": "./dist/acp/index.d.ts",
       "default": "./dist/acp/index.js"
+    },
+    "./pi": {
+      "types": "./dist/pi/index.d.ts",
+      "default": "./dist/pi/index.js"
     }
   },
   "files": [

@@ -83,6 +83,40 @@ Coverage depends on the agent. The proxy speaks ACP version 1 and forwards
 anything it does not understand, so features such as session loading, modes,
 and MCP servers work as if the proxy were not there.
 
+## pi and oh-my-pi
+
+Both hosts load a TypeScript extension with no build step and expose a
+thinking level per prompt, which makes them the best native targets. Load the
+extension with `-e`:
+
+```sh
+pi -e /path/to/dynamic-effort/src/pi/index.ts
+omp -e /path/to/dynamic-effort/src/pi/index.ts
+```
+
+A published install uses the built entry:
+`pi -e node_modules/@mrdrmccoy/dynamic-effort/dist/pi/index.js`.
+
+To load it in every session, add the path to `settings.json`:
+
+```json
+{
+  "extensions": ["/path/to/dynamic-effort/src/pi/index.ts"]
+}
+```
+
+The extension decides on the first prompt of each turn, calls
+`setThinkingLevel`, then reads the level back. Before it sets a level it reads
+the model's own vocabulary — `thinking.efforts` in omp, `thinkingLevelMap` in
+pi — and picks the nearest supported level, with ties going to the stronger
+one. A model that offers only `high` and `max` therefore gets `max` for an
+`xhigh` decision instead of being clamped down to `high`. The footer shows
+`effort xhigh (max)` when the level differs from the decision. A level you
+pick yourself pins the session and later prompts leave it alone; the host
+echoes the extension's own write, which is not treated as a choice.
+`session_shutdown` persists telemetry and stops a server this extension
+started.
+
 ## Environment variables
 
 The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.

@@ -1,7 +1,7 @@
 name: npm diagnostics
 
 # Temporary: reports which npm account the environment token belongs to and
-# whether it can publish to the scope. Deleted after use.
+# what that token may do. Deleted after use.
 on:
   workflow_dispatch:
   pull_request:
@@ -23,9 +23,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "token length: ${#NODE_AUTH_TOKEN}"
-          echo "token prefix: ${NODE_AUTH_TOKEN:0:4}"
           npm whoami || echo "whoami failed with $?"
-          echo "--- orgs ---"
-          npm org ls mrdrmccoy --json || echo "org ls failed with $?"
-          echo "--- scope access ---"
-          npm access list packages @mrdrmccoy || echo "access failed with $?"
+          echo "--- profile ---"
+          npm profile get --json 2>&1 | head -40 || true
+          echo "--- tokens ---"
+          npm token list 2>&1 | head -20 || true
+          echo "--- scope lookup ---"
+          curl -s -o /dev/null -w "user-scope:%{http_code}\n" \
+            https://registry.npmjs.org/-/user/org.couchdb.user:mrdrmccoy
+          curl -s -o /dev/null -w "pkg:%{http_code}\n" \
+            https://registry.npmjs.org/@mrdrmccoy%2fdynamic-effort

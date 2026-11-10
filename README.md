@@ -24,6 +24,12 @@ One decision per user prompt, reused for the tool calls that follow:
 Every failure is fail-open: a missing server, a timeout, or a malformed
 answer leaves the harness's own defaults untouched.
 
+The thresholds are measured, not guessed. On a 60-prompt labelled corpus
+(`calibration/corpus.jsonl`) the model agrees with the human label exactly
+50% of the time and is within one level 85% of the time. A dangerous prompt
+is under-powered 1 time in 17. See [Calibration](#calibration) for the
+numbers and the scripts that produce them.
+
 ## Install
 
 The plugin is not published yet. Use it from a checkout:
@@ -224,8 +230,8 @@ They sit below explicit options and above the defaults.
 | `model` | `jevos-v5` | Model name sent to the endpoint. |
 | `defaultEffort` | `medium` | Effort used when the answer is not confident. |
 | `maxEffort` | `xhigh` | Upper bound for every decision. |
-| `minConfidence` | `0.35` | Below this the answer is ignored. |
-| `stakesThreshold` | `0.7` | At or above this the effort bumps one level. |
+| `minConfidence` | `0.1` | Below this the answer is ignored. |
+| `stakesThreshold` | `0.2` | At or above this the effort bumps one level. |
 | `timeoutMs` | `8000` | Decision deadline. |
 | `maxStateChars` | `4000` | Prompt tail sent to the model. |
 | `keywords` | `["ultrathink"]` | Whole words that force the maximum. |
@@ -292,6 +298,41 @@ harness may expose a different scale (`none` through `max`, or settings
 such as `reasoningEffort`). The plugin picks the nearest variant on that
 scale and, on a tie, the stronger one. If nothing matches, it leaves the
 request alone.
+
+## Calibration
+
+The defaults come from measurement, not taste. `calibration/corpus.jsonl`
+holds 60 prompts labelled by hand with the effort they deserve and whether
+they are dangerous. `scripts/calibrate.mjs` asks jev about each one and
+scores the result, so a wording or threshold change is checked before it
+ships:
+
+```sh
+npm run build
+node scripts/calibrate.mjs      # writes calibration/report.md
+```
+
+What the corpus showed, and what changed because of it:
+
+| Finding | Response |
+| --- | --- |
+| The model under-rated by 0.40 levels and never chose `xhigh`. | Sharper criteria for `minimal`, `high`, and `xhigh`; the gap is now 0.08. |
+| Confidence barely separates right from wrong: 0.46 when right, 0.33 when wrong. | Gate dropped from 0.35 to 0.1. Above 0.1 it only discards right answers. |
+| Stakes is bimodal: ordinary 0.04–0.11, dangerous 0.21–0.93. | Threshold dropped from 0.7 to 0.2: every dangerous prompt caught, 2 false positives. |
+| The stakes bump cannot rescue a badly under-rated prompt. | Kept at one level. It removes one under-powered answer in 17. |
+
+End to end, on the same corpus, the shipped policy matches the human label
+exactly 50% of the time, is within one level 85% of the time, and leaves 1
+of 17 dangerous prompts under-powered. The previous defaults managed 35%
+exact and 26.7% under-powered.
+
+The model's answers are deterministic: repeating the same prompt five times
+gave the same level, confidence, and stakes score every time
+(`scripts/stability.mjs`). The corpus is small, so treat the numbers as a
+direction, not a promise. `scripts/distribution.mjs` prints the score
+distributions, `scripts/reach.mjs` shows whether each level is reachable at
+all, and `scripts/verify-decisions.mjs` reports the end-to-end result
+including the stakes bump.
 
 ## Development
 

@@ -147,7 +147,7 @@ export function buildTuningPrompt(
     ' "questions": {"reasoningEffort": "...", "highStakes": "...",',
     '   "effortCriteria": {"minimal": "...", "low": "...",',
     '     "medium": "...", "high": "...", "xhigh": "..."}},',
-    ' "minConfidence": 0.35, "stakesThreshold": 0.7,',
+    ' "minConfidence": 0.5, "stakesThreshold": 0.4,',
     ' "defaultEffort": "medium", "maxEffort": "xhigh",',
     ' "notes": ["short observation"]}',
     "",

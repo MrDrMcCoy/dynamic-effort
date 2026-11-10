@@ -54,7 +54,10 @@ describe("summarizeTelemetry", () => {
     buffer.append(decision({ confidence: 0.8, highStakes: 0.1 }));
     buffer.append(decision({ applied: false, effort: "low" }));
 
-    const stats = summarizeTelemetry(buffer.snapshot(), DEFAULT_CONFIG);
+    const stats = summarizeTelemetry(buffer.snapshot(), {
+      minConfidence: 0.35,
+      stakesThreshold: 0.7,
+    });
 
     expect(stats.entries).toBe(3);
     expect(stats.sessions).toBe(1);
@@ -108,7 +111,7 @@ describe("buildTuningPrompt", () => {
     const prompt = buildTuningPrompt(buffer.snapshot(), DEFAULT_CONFIG);
 
     expect(prompt).toContain("defaultEffort=medium");
-    expect(prompt).toContain("minConfidence=0.35");
+    expect(prompt).toContain("minConfidence=0.1");
     expect(prompt).toContain("decisions=1 sessions=1");
     expect(prompt).toContain("effort=medium");
     expect(prompt).toContain("confidence=0.910");
@@ -270,7 +273,7 @@ describe("describeProposal", () => {
     );
 
     expect(lines[0]).toBe("Tighter thresholds.");
-    expect(lines).toContain("minConfidence: 0.35 -> 0.5");
+    expect(lines).toContain("minConfidence: 0.1 -> 0.5");
     expect(lines).toContain("defaultEffort: medium -> low");
     expect(lines).toContain("questions: rewritten");
     expect(lines).toContain("note: watch the low tail");

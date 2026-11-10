@@ -21,8 +21,10 @@ import {
 import {
   collectEntries,
   executeTune,
+  isTunePrompt,
   runTune,
   tuneDirectory,
+  tuneReplacement,
   type TuneHarness,
 } from "../../src/opencode/tune.ts";
 
@@ -357,5 +359,52 @@ describe("the tuning command", () => {
 
     expect(fake.reported[0]).toContain("Reviewed 1 decisions.");
     expect(fake.reported[0]).toContain("Proposal:");
+  });
+
+  test("returns the proposal file it wrote", async () => {
+    const buffer = new TelemetryBuffer();
+    buffer.append(decision());
+    const fake = harness({ telemetry: buffer });
+
+    const file = await executeTune(fake, "ses_1");
+
+    expect(file).not.toBeNull();
+    expect(readdirSync(fake.directory)).toContain(file!.split("/").pop()!);
+  });
+
+  test("returns null when the answer is malformed", async () => {
+    const buffer = new TelemetryBuffer();
+    buffer.append(decision());
+    const fake = harness({
+      telemetry: buffer,
+      async generate() {
+        return "not json";
+      },
+    });
+
+    expect(await executeTune(fake, "ses_1")).toBeNull();
+  });
+});
+
+describe("isTunePrompt", () => {
+  test("matches the bare command and its arguments", () => {
+    expect(isTunePrompt("/effort-tune")).toBe(true);
+    expect(isTunePrompt("  /effort-tune now")).toBe(true);
+  });
+
+  test("ignores other prompts", () => {
+    expect(isTunePrompt("effort-tune")).toBe(false);
+    expect(isTunePrompt("/effort-tunes")).toBe(false);
+    expect(isTunePrompt("run /effort-tune")).toBe(false);
+  });
+});
+
+describe("tuneReplacement", () => {
+  test("points at the proposal", () => {
+    expect(tuneReplacement("/tmp/x.json")).toContain("/tmp/x.json");
+  });
+
+  test("says so when nothing was written", () => {
+    expect(tuneReplacement(null)).toContain("No proposal");
   });
 });

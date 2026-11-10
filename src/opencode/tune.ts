@@ -30,6 +30,29 @@ export interface TuneHarness {
 
 export const TUNE_COMMAND = "effort-tune";
 
+/** Matches a prompt that invokes the command. */
+const TUNE_PATTERN = /^\s*\/effort-tune\b/;
+
+/**
+ * True when the prompt starts with `/effort-tune`.
+ *
+ * The harness does not route plugin-registered commands from prompt text in
+ * `opencode run`, so the plugin also handles the command in the prompt hook.
+ */
+export function isTunePrompt(text: string): boolean {
+  return TUNE_PATTERN.test(text);
+}
+
+/** Text handed to the model after the command has already run. */
+export function tuneReplacement(file: string | null): string {
+  const where = file ? `The proposal is at ${file}.` : "No proposal was written.";
+  return (
+    `The /${TUNE_COMMAND} command already ran; its result is shown in ` +
+    `this session. ${where} Reply with one short sentence and do not ` +
+    `call tools.`
+  );
+}
+
 /** Merges the persisted file with the live buffer, oldest first. */
 export function collectEntries(
   telemetry: TelemetryBuffer,
@@ -97,18 +120,21 @@ export async function runTune(
   };
 }
 
-/** Runs the command and reports the result in the session. */
+/** Runs the command, reports the result, and returns the proposal file. */
 export async function executeTune(
   harness: TuneHarness,
   sessionID: string,
-): Promise<void> {
+): Promise<string | null> {
+  harness.logger.debug("tune invoked", { session: sessionID });
   try {
     const outcome = await runTune(harness, sessionID);
     await harness.report(sessionID, outcome.lines.join("\n"));
+    return outcome.file;
   } catch (error) {
     harness.logger.debug("tuning failed", error);
     const message = error instanceof Error ? error.message : String(error);
     await harness.report(sessionID, `Effort tuning failed: ${message}`);
+    return null;
   }
 }
 

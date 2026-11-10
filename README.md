@@ -160,6 +160,36 @@ Hermes receives `--reasoning <level>` and accepts `none` through `max`. The
 level is mapped onto that range, so `minimal` stays `minimal` and any decision
 above `max` is capped.
 
+## MCP
+
+Any MCP client can ask for a decision over stdio, which needs no plugin
+support at all:
+
+```json
+{
+  "mcpServers": {
+    "dynamic-effort": {
+      "command": "npx",
+      "args": ["@mrdrmccoy/dynamic-effort", "mcp"]
+    }
+  }
+}
+```
+
+The server exposes one tool, `decide_effort`, which takes `prompt` and
+optionally `agent` and `model`, and returns the level plus the confidence
+behind it:
+
+```json
+{ "effort": "high", "confidence": 0.71, "highStakes": 0.12 }
+```
+
+This is advisory: the client must apply the level itself, and most clients
+have no way to act on the answer mid-session. Use it where a harness can ask a
+question but cannot be extended, and expect to set the level for the whole
+session. A client that can run a process can get a real per-prompt decision
+from the ACP proxy or the native extensions instead.
+
 ## Environment variables
 
 The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.

@@ -27,17 +27,19 @@ import {
   runAcpProxy,
 } from "./acp/index.ts";
 import { ADAPTERS, runLaunch } from "./launch/index.ts";
+import { runMcpServer } from "./mcp/index.ts";
 
 const FIRST_PORT = 8017;
 
 const USAGE =
-  "usage: dynamic-effort <setup|status|serve|acp|launch|telemetry>\n" +
+  "usage: dynamic-effort <setup|status|serve|acp|launch|mcp|telemetry>\n" +
   "       [-- command ...]\n" +
   "  setup      download and verify jevos if it is missing\n" +
   "  status     report the install and any running server\n" +
   "  serve      run the server until interrupted\n" +
   "  acp        proxy an ACP agent (default: opencode acp)\n" +
-  "  launch     run codex or claude with the decided effort\n" +
+  "  launch     run a harness with the decided effort\n" +
+  "  mcp        serve decide_effort to an MCP client\n" +
   "  telemetry  summarise the decisions recorded on disk";
 
 function usage(): never {
@@ -195,6 +197,11 @@ switch (command) {
     }
     const args = split >= 0 ? rest.slice(split + 1) : rest.slice(1);
     process.exitCode = await runLaunch({ adapter, args });
+    break;
+  }
+
+  case "mcp": {
+    await runMcpServer({ config: { debug: true } });
     break;
   }
 

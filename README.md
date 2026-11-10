@@ -117,6 +117,27 @@ echoes the extension's own write, which is not treated as a choice.
 `session_shutdown` persists telemetry and stops a server this extension
 started.
 
+## Codex and Claude Code
+
+Both harnesses take the effort level only when the process starts, so the
+adapter decides from the prompt first and then runs the real binary with the
+level in its arguments:
+
+```sh
+dynamic-effort launch codex -- exec "refactor the parser"
+dynamic-effort launch claude -- -p "prove this sort is stable"
+```
+
+The decision comes from the first positional argument, or from stdin when the
+arguments have none. Codex receives `-c model_reasoning_effort=<level>`;
+Claude Code receives `--effort <level>`. The level is mapped onto each
+harness's own vocabulary first, so `minimal` becomes `low` for Claude Code,
+which has no `minimal` level. Codex does not validate the value at startup, so
+the mapping must happen here rather than in the harness.
+
+Neither harness can change effort mid-session through a hook, so a decision
+covers the whole run. A failed decision runs the harness unchanged.
+
 ## Environment variables
 
 The ACP proxy has no config file, so it reads `DYNAMIC_EFFORT_` variables.

@@ -37,6 +37,10 @@
     "./pi": {
       "types": "./dist/pi/index.d.ts",
       "default": "./dist/pi/index.js"
+    },
+    "./launch": {
+      "types": "./dist/launch/index.d.ts",
+      "default": "./dist/launch/index.js"
     }
   },
   "files": [

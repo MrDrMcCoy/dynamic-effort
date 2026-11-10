@@ -48,6 +48,31 @@ describe("TelemetryBuffer", () => {
     ]);
   });
 
+  test("keeps one entry when the same decision is applied again", () => {
+    const buffer = new TelemetryBuffer();
+    const first = buffer.append(decision({ promptHash: "abc", prompt: "hi" }));
+    const second = buffer.append(decision({ promptHash: "abc", prompt: "hi" }));
+
+    expect(buffer.size).toBe(1);
+    expect(second.at).toBe(first.at);
+  });
+
+  test("records a new prompt hash as a new entry", () => {
+    const buffer = new TelemetryBuffer();
+    buffer.append(decision({ promptHash: "abc" }));
+    buffer.append(decision({ promptHash: "def" }));
+
+    expect(buffer.size).toBe(2);
+  });
+
+  test("records entries without a prompt hash every time", () => {
+    const buffer = new TelemetryBuffer();
+    buffer.append(decision());
+    buffer.append(decision());
+
+    expect(buffer.size).toBe(2);
+  });
+
   test("keeps the tail of a long prompt", () => {
     const buffer = new TelemetryBuffer({ promptChars: 5 });
     const entry = buffer.append(decision({ prompt: "abcdefghij" }));

@@ -18,6 +18,14 @@ import {
   type StashedDecision,
 } from "../core/index.ts";
 import { DynamicEffort } from "./rpc.ts";
+import {
+  executeTune,
+  isTunePrompt,
+  tuneDirectory,
+  tuneReplacement,
+  TUNE_COMMAND,
+  type TuneHarness,
+} from "./tune.ts";
 
 export const PLUGIN_ID = "dynamic-effort";
 
@@ -88,6 +96,51 @@ export default {
         },
       });
 
+      // `/effort-tune` reviews the recorded decisions with the main model.
+      // The proposal lands on disk; applying it stays manual.
+      const tuneHarness: TuneHarness = {
+        config,
+        logger,
+        telemetry,
+        telemetryPath: runtime.telemetryPath,
+        directory: tuneDirectory(runtime.root),
+        async generate(prompt, sessionID) {
+          const session = (await ctx.session.get({ sessionID })) as {
+            model?: {
+              id: string;
+              providerID: string;
+              variant?: string;
+            } | null;
+          };
+          const model = session?.model ?? null;
+          const out = await ctx.experimental.generate.text({
+            prompt,
+            ...(model ? { model } : {}),
+          });
+          return out.text;
+        },
+        async report(sessionID, text) {
+          await ctx.session.synthetic({
+            sessionID,
+            text,
+            description: "effort tuning",
+          });
+        },
+      };
+
+      // The TUI palette can dispatch this registration. `opencode run` does
+      // not route plugin commands from prompt text, so the prompt hook below
+      // handles the same command for every harness.
+      await ctx.command.transform((editor) => {
+        editor.add({
+          name: TUNE_COMMAND,
+          description: "Review recorded decisions and propose tuning",
+          async execute({ sessionID }) {
+            await executeTune(tuneHarness, sessionID);
+          },
+        });
+      });
+
       const publish = async (record: DecisionRecord) => {
         records.set(record.session, record);
         if (records.size > 500) {
@@ -121,6 +174,11 @@ export default {
         if (prompts.size > 500) {
           const oldest = prompts.keys().next();
           if (!oldest.done) prompts.delete(oldest.value);
+        }
+
+        if (isTunePrompt(text)) {
+          const file = await executeTune(tuneHarness, event.sessionID);
+          if (event.prompt) event.prompt.text = tuneReplacement(file);
         }
 
         const decision = await router.onPrompt({

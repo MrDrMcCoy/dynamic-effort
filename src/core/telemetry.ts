@@ -115,8 +115,24 @@ export class TelemetryBuffer {
     return this.entries.length;
   }
 
-  /** Records one decision, dropping the oldest entry when full. */
+  /**
+   * Records one decision, dropping the oldest entry when full.
+   *
+   * A harness applies a decision to every model call in the tool loop, so
+   * the same prompt arrives many times. Only the newest entry is compared:
+   * a repeat of the session and prompt hash is the same decision, not a
+   * new one, and the existing entry is returned unchanged.
+   */
   append(input: TelemetryInput): TelemetryEntry {
+    const newest = this.entries[this.entries.length - 1];
+    if (
+      newest &&
+      input.promptHash !== undefined &&
+      newest.session === input.session &&
+      newest.promptHash === input.promptHash
+    ) {
+      return { ...newest };
+    }
     const entry: MutableEntry = {
       at: new Date().toISOString(),
       ...input,

@@ -161,6 +161,23 @@ efforts: low=20 minimal=12 high=6 xhigh=4
 sources: prompt=40 context=2
 ```
 
+## Effort tuning
+
+Run `/effort-tune` in a session to review the recorded decisions with the
+main model. The tuner sends the current settings, a summary, and up to 200
+decision lines, and asks for changes to the question wording, the level
+criteria, or the thresholds where the record supports them.
+
+The command runs from the prompt itself, so it works in the TUI and in
+`opencode run`. The plugin also registers it for the command palette. After
+the review, the prompt is replaced with a short note so the model does not
+repeat the work.
+
+The answer comes back as one validated JSON proposal, stored under the
+cache root in the `tune` folder. Nothing in your configuration changes by
+itself: applying a proposal stays an explicit, diffable step. The newest
+20 proposals are kept.
+
 ## Effort mapping
 
 Abstract levels are `minimal`, `low`, `medium`, `high`, and `xhigh`. A
